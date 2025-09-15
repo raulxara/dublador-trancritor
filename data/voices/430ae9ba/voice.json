@@ -1,0 +1,25 @@
+{
+  "id": "430ae9ba",
+  "name": "Adam",
+  "raw_path": "/Users/usuario/Desktop/dubber/data/voices/430ae9ba/raw.wav",
+  "clean_wav": "/Users/usuario/Desktop/dubber/data/voices/430ae9ba/clean.wav",
+  "validation": {
+    "passed": true,
+    "stats": {
+      "duration_sec": 35.474,
+      "rms": 0.153347,
+      "peak": 0.867676,
+      "clip_ratio": 0.0,
+      "silence_ratio": 0.170237,
+      "lufs_est": -16.98,
+      "sr": 22050
+    },
+    "checks": {
+      "duration_ok": true,
+      "silence_ok": true,
+      "clipping_ok": true,
+      "peak_ok": true
+    },
+    "tips": []
+  }
+}
