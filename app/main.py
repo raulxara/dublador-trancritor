@@ -364,7 +364,21 @@ class DubberApp(ctk.CTk):
                 final_wav = job_dir / "tts.wav"
 
                 # 1) síntese base (modo 'smart' que limpa pontuação final)
-                self.xtts.synthesize_smart_to_file(text, Path(voice.clean_wav), lang, raw_path, pause_ms=180)
+                speaker_wav = Path(voice.clean_wav)
+
+                if not speaker_wav.is_absolute():
+                    speaker_wav = Path(__file__).resolve().parents[1] / speaker_wav
+
+                if not speaker_wav.exists():
+                    raise FileNotFoundError(f"Voz-base não encontrada: {speaker_wav}")
+
+                self.xtts.synthesize_smart_to_file(
+                    text,
+                    speaker_wav,
+                    lang,
+                    raw_path,
+                    pause_ms=180,
+                )
 
                 # 2) pós-processamento (speed/pitch — opcional)
                 if abs(speed - 1.0) > 1e-6 or semitones != 0:
