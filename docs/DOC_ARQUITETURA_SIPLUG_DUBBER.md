@@ -1,10 +1,16 @@
 # SiPlug Dubber — Arquitetura, tecnologias e Docker
 
+> Atualização 10/09/2026: 11 tabelas de identidade e autenticação Bearer/RBAC implementadas na revisão 0001_identity. Token persistido como SHA-256 com token_expires_at; permissions.scope_key garante unicidade global. O restante do modelo é alvo futuro. Consulte AUTENTICACAO.md para o estado atual, comandos e limitações; descrições históricas abaixo não substituem essa atualização.
+
+> Limpeza em 10/09/2026: ambiente .venv, interface desktop, builds e empacotamento removidos. Referências históricas a app/ correspondem ao código anterior; motores preservados em legacy/audio_reference/ e dados mantidos em data/.
+
+> Etapa inicial implementada em 10/09/2026: API Python em src/, Dockerfile.DEV, Compose app/db, health/readiness e módulo Voice de referência. O restante deste documento descreve a arquitetura alvo; worker, scheduler, autenticação completa e tabelas de domínio ainda não foram implementados. O README é a referência para executar a versão atual.
+
 08/09/2026 • Especificação proposta para implementação • API e processamento Python
 
 Este documento complementa [o modelo de banco de dados](DOC_BANCO_DE_DADOS_SIPLUG_DUBBER.html). A decisão confirmada pelo usuário é manter **API e processamento em Python**, reproduzindo as responsabilidades e camadas da arquitetura SiPlug. O frontend pertence à aplicação SiPlug. O Dubber será um serviço consumido pelo backend dessa aplicação.
 
-Esta entrega é documental: a API, os repositórios relacionais, os workers e a infraestrutura descritos ainda precisam ser implementados. Nenhum container ou migration foi executado para gerar esta documentação.
+A arquitetura completa abaixo permanece como alvo. A etapa inicial já implementa a estrutura da API e o Compose app/db. Repositórios de domínio, workers e migrations ainda serão implementados.
 
 ## 1. Fontes e estado atual
 
@@ -149,7 +155,7 @@ dubber/
     └── DOC_ARQUITETURA_SIPLUG_DUBBER.md
 ```
 
-A árvore ainda não existe. O app/main.py atual contém a interface desktop; não deve ser confundido com o futuro entrypoint HTTP. Migrar motores para a estrutura nova e manter o desktop enquanto os fluxos equivalentes não estiverem validados. A API não importa engines/ ou PyTorch no boot; somente o ponto de composição do worker carrega esses adaptadores.
+A árvore representa o alvo completo; a etapa inicial já implementa parte das pastas e contratos. A interface desktop foi removida na limpeza. Os motores anteriores estão em legacy/audio_reference/ apenas para consulta e migração; o entrypoint HTTP está em src/app/main.py. A API não importa engines/ ou PyTorch no boot; somente o ponto de composição do worker carrega esses adaptadores.
 
 ## 5. Identificadores, entidades, DTOs e repositórios
 
@@ -412,4 +418,4 @@ Plano de implementação: congelar versões compatíveis; criar estrutura e imag
 
 Na implantação futura: criar rede_internal se ausente; validar docker compose config; construir imagens; verificar readiness; executar migrations Alembic explicitamente; provisionar primeiro acesso pelo fluxo autorizado; testar consumidor real em homologação. Não executar limpeza de banco ou bootstrap indiscriminado em instalação existente. Manter backup de mídia, banco e configuração necessária à recuperação.
 
-Não foram criados Dockerfiles, docker-compose.yml, servidor FastAPI, workers, migrations ou endpoints reais por esta entrega. Não foram instaladas dependências, baixados modelos, iniciados containers ou removidos arquivos da interface. O exemplo Compose é uma especificação, não uma implantação testada.
+Atualização: a etapa inicial criou Dockerfile.DEV, docker-compose.yml e API FastAPI com health/readiness, validados em containers com MySQL. Worker, scheduler, migrations de domínio e endpoints de negócio continuam pendentes. O exemplo acima é a arquitetura alvo; consulte o Compose da raiz e o README para a execução atual. Motores e desktop foram preservados.

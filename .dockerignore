@@ -1,0 +1,8 @@
+*
+!src/
+!src/**
+src/**/__pycache__/
+src/**/.pytest_cache/
+src/**/.ruff_cache/
+src/**/.env
+src/**/.venv*/

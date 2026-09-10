@@ -1,5 +1,7 @@
 # SiPlug Dubber — Documentação do banco de dados
 
+> Atualização 10/09/2026: 11 tabelas de identidade e autenticação Bearer/RBAC implementadas na revisão 0001_identity. Token persistido como SHA-256 com token_expires_at; permissions.scope_key garante unicidade global. O restante do modelo é alvo futuro. Consulte AUTENTICACAO.md para o estado atual, comandos e limitações; descrições históricas abaixo não substituem essa atualização.
+
 08/09/2026 • Modelo proposto • 26 tabelas
 
 Modelo proposto para implementação no Dubber, consolidado a partir do diagrama enviado e das telas de cadastro de voz e chat. Não descreve migrations já aplicadas: o código atual persiste vozes em JSON e resultados em arquivos. Nenhum banco foi criado ou alterado por esta documentação.

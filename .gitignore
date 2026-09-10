@@ -11,3 +11,18 @@ __pycache__/
 build/
 dist/
 *.spec
+
+# API e desenvolvimento Docker
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+.coverage
+.env.*
+!.env.example
+/.docker/mysql/data/
+
+# Artefatos locais
+*.log
+/logs/
+/data/logs/

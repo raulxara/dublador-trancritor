@@ -1,0 +1,9 @@
+from typing import Protocol
+
+from app.services.actor.authorized_actor import AuthorizedActor
+
+
+class IAuthorizationRepository(Protocol):
+    def find_actor(self, token_hash: str) -> AuthorizedActor | None: ...
+    def replace_token(self, office_id: str, user_id: str, token_hash: str, expires_at: object) -> bool: ...
+    def revoke_token(self, office_id: str, user_customer_id: str) -> None: ...
