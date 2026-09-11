@@ -1,0 +1,719 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SiPlug Dubber — Arquitetura, tecnologias e Docker</title><style>
+@page{size:A4;margin:17mm 15mm 18mm}*{box-sizing:border-box}body{margin:0;color:#24313b;font:9.3pt -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.35}h1{font-size:27pt;margin:0 0 5px}h2{color:#0876b9;font:600 20pt Menlo,Consolas,monospace;margin:0 0 6px}h3{font-size:12pt;margin:13px 0 6px}.cover{height:245mm;padding-top:37mm}.cover-box{background:#111;color:#fff;text-align:center;padding:52px 20px 24px}.cover-box h1{letter-spacing:1px}.cover-box p{font-size:14pt;color:#d6e0e5}.cover-meta{margin-top:80px;font-size:12pt;color:#dbe5ea}.callout{border:1px solid #d8e2e8;border-left:6px solid #009be8;background:#f4f8fa;padding:12px 14px;margin:18px 0}.stats{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid #d8e2e8}.stats div{padding:12px;border-right:1px solid #d8e2e8}.stats div:last-child{border:0}.stats small{display:block;color:#60738a;text-transform:uppercase}.page{break-after:page;page-break-after:always;position:relative;min-height:250mm;padding-bottom:16mm}.page:last-child{break-after:auto;page-break-after:auto}table{border-collapse:collapse;width:100%;margin:9px 0 11px;font-size:8pt}th{background:#111;color:#dbe6e8;text-align:left;padding:7px 6px}td{border:1px solid #dce5ea;padding:6px;vertical-align:top}td:first-child,code{color:#0073b8;font-family:Menlo,Consolas,monospace}.footer{position:absolute;bottom:0;border-top:1px solid #d8e2e8;width:100%;padding-top:7px;color:#60738a;font-size:8pt}.toc li{margin:7px 0}.muted{color:#60738a}.rule{background:#f8fafb;border-left:4px solid #0876b9;padding:8px 10px;margin:8px 0}.bad{border-left-color:#df6e25}.table-name{font-family:Menlo,Consolas,monospace;color:#0876b9}.avoid-break{break-inside:avoid}
+
+body{max-width:1100px;margin:auto;padding:26px}.page{min-height:0;padding-bottom:20px;margin-bottom:36px}.cover{height:auto;min-height:90vh}.footer{position:static;margin-top:20px}a{color:#0876b9}td{overflow-wrap:anywhere}tr{break-inside:avoid}thead{display:table-header-group}h2{overflow-wrap:anywhere}.schema-nav{columns:2}svg{width:100%;height:auto}@media print{body{padding:0;max-width:none}.cover{min-height:235mm}.page{margin-bottom:0}.schema-nav{columns:2}a{text-decoration:none}table{font-size:7.6pt}td,th{padding:5px}.no-print{display:none}}
+pre{background:#f3f7fa;border:1px solid #d8e2e8;padding:14px;overflow:auto;font-size:8.5pt;line-height:1.5}pre code{color:#24313b}h2{font-family:inherit}table{font-size:9pt}th{white-space:normal}.toc{columns:2}@media print{pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:7pt;break-inside:auto}table{font-size:7.8pt}.toc{columns:1}}</style></head><body><p><strong>Atualização 11/09/2026: revisão 0005_catalog_and_projects completa as 26 tabelas de domínio. Tags, vínculos externos de projetos, edição versionada de transcrições, entrada MP3/MP4 e limpeza protegida de órfãos implementados. Consulte CATALOGO_PROJETOS_E_MIDIA.md para contratos e limites atuais; registros anteriores abaixo são históricos.</strong> <a href="CATALOGO_PROJETOS_E_MIDIA.html">Guia atual</a></p><p><strong>Etapa de processamento: revisão 0004_processing_results implementa resultados, transcrições e segmentos (23 tabelas de domínio). Worker CPU com XTTS/Whisper, scheduler de leases, cancelamento em execução e download privado disponíveis. Consulte WORKER_E_PROCESSAMENTO.md para o estado atual e comandos; os registros de etapas anteriores abaixo são históricos.</strong> <a href="WORKER_E_PROCESSAMENTO.md">Documentação de processamento</a></p>
+<p>Atualização 10/09/2026: revisão 0003_chat_jobs acrescenta quatro tabelas de chat/mensagens/jobs (20 tabelas de domínio implementadas). Entrada de texto/áudio, propriedade, idempotência e cancelamento disponíveis. Jobs permanecem queued até a integração do worker. Consulte CHAT_E_JOBS.md; o restante deste documento contém especificações futuras e registros das etapas anteriores.</p>
+<p>Etapa de vozes implementada em 10/09/2026: revisão 0002_voices acrescenta languages, gender, voices, media_files e voice_samples, totalizando 16 tabelas de domínio. Cadastro de vozes e upload/download privado de WAV disponíveis; tags/chat/motores permanecem como alvo. Consulte VOZES_E_AMOSTRAS.md para limites e comandos atuais.</p>
+<p>Atualização 10/09/2026: 11 tabelas de identidade e autenticação Bearer/RBAC implementadas na revisão 0001_identity. Token persistido como SHA-256 com token_expires_at; permissions.scope_key garante unicidade global. O restante do modelo é alvo futuro. Consulte AUTENTICACAO.md para o estado atual, comandos e limitações; descrições históricas abaixo não substituem essa atualização.</p>
+<p>Limpeza em 10/09/2026: ambiente .venv, interface desktop, builds e empacotamento removidos. Referências históricas a app/ correspondem ao código anterior; motores preservados em legacy/audio_reference/ e dados mantidos em data/.</p><div class="callout">Etapa inicial implementada em 10/09/2026: API Python em src/, Dockerfile.DEV, Compose app/db, health/readiness e módulo Voice de referência. O restante deste documento descreve a arquitetura alvo; worker, scheduler, autenticação completa e tabelas de domínio ainda não foram implementados. O README é a referência para executar a versão atual.</div>
+<section class="cover page"><div class="cover-box"><h1>SIPLUG DUBBER</h1><p>Arquitetura limpa • Tecnologias • Docker</p><div class="cover-meta">API e processamento Python<br>Padrão SiPlug • 08/09/2026</div></div><div class="callout">Decisão confirmada: API e processamento em Python. Documento de arquitetura proposta; não representa infraestrutura já implementada.</div><div class="stats"><div><small>Camadas</small>Entidades • DTOs • Serviços • Repositórios</div><div><small>Processos</small>API • Worker • Scheduler</div><div><small>Persistência</small>MySQL • Arquivos privados</div></div></section>
+<section class="page"><h2>Sumário e escopo</h2><p>08/09/2026 • Especificação proposta para implementação • API e processamento Python</p>
+<p>Este documento complementa <a href="DOC_BANCO_DE_DADOS_SIPLUG_DUBBER.html">o modelo de banco de dados</a>. A decisão confirmada pelo usuário é manter <strong>API e processamento em Python</strong>, reproduzindo as responsabilidades e camadas da arquitetura SiPlug. O frontend pertence à aplicação SiPlug. O Dubber será um serviço consumido pelo backend dessa aplicação.</p>
+<p>A arquitetura completa abaixo permanece como alvo. A etapa inicial já implementa a estrutura da API e o Compose app/db. Repositórios de domínio, workers e migrations ainda serão implementados.</p><ol class="toc"><li><a href="#section-1">1. Fontes e estado atual</a></li><li><a href="#section-2">2. Princípios da arquitetura limpa SiPlug</a></li><li><a href="#section-3">3. Responsabilidade de cada camada</a></li><li><a href="#section-4">4. Estrutura de diretórios proposta</a></li><li><a href="#section-5">5. Identificadores, entidades, DTOs e repositórios</a></li><li><a href="#section-6">6. Tecnologias utilizadas e propostas</a></li><li><a href="#section-7">7. Padrão Docker observado nas referências</a></li><li><a href="#section-8">8. Serviços, redes e volumes do Dubber</a></li><li><a href="#section-9">9. Esqueleto Compose proposto</a></li><li><a href="#section-10">10. Configuração centralizada</a></li><li><a href="#section-11">11. Processamento assíncrono com banco como fila inicial</a></li><li><a href="#section-12">12. Exemplo completo: texto ou áudio no chat</a></li><li><a href="#section-13">13. Contratos HTTP propostos</a></li><li><a href="#section-14">14. Testes, implantação e migração</a></li></ol></section>
+<section class="page" id="section-1"><h2>1. Fontes e estado atual</h2><p>Foram analisados os docker-compose.yml de siplug-agents, siplug-notifications, siplug-logs, siplug-communications e siplug-commerce-api; o Dockerfile.DEV do Agents; a organização das APIs SiPlug trabalhadas nesta conversa; os módulos app/main.py, app/voice_manager.py, app/config.py, app/utils/projects.py, app/engines e app/audio do Dubber; as telas adicionar-voz.pdf e pagina-dublador.pdf; e o modelo das 26 tabelas documentado neste projeto.</p>
+<table>
+<thead>
+<tr>
+<th>Tema</th>
+<th>Encontrado no código</th>
+<th>Destino proposto</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Interface</td>
+<td>Desktop Python com Tkinter/CustomTkinter</td>
+<td>Frontend somente na SiPlug; Dubber expõe API</td>
+</tr>
+<tr>
+<td>Vozes</td>
+<td>voice.json e diretórios raw/clean</td>
+<td>Entidades voices, voice_samples e media_files</td>
+</tr>
+<tr>
+<td>Resultados</td>
+<td>Diretórios locais por data/hora</td>
+<td>Jobs persistidos, arquivos privados e histórico de chat</td>
+</tr>
+<tr>
+<td>Síntese</td>
+<td>TTS.api, XTTS e PyTorch</td>
+<td>Adaptador Python de síntese</td>
+</tr>
+<tr>
+<td>Reconhecimento</td>
+<td>Módulos Whisper e faster-whisper</td>
+<td>Adaptador escolhido e validado para cada operação</td>
+</tr>
+<tr>
+<td>Conversão</td>
+<td>vc_s2s.py com síntese segmentada e ajuste de duração</td>
+<td>Adaptador de conversão com preservação temporal configurável</td>
+</tr>
+<tr>
+<td>OpenVoice</td>
+<td>Importação opcional e placeholder</td>
+<td>Não declarar como backend implementado</td>
+</tr>
+<tr>
+<td>Persistência da API</td>
+<td>Não implementada no Dubber atual</td>
+<td>MySQL e migrations conforme o banco proposto</td>
+</tr>
+<tr>
+<td>Docker do Dubber</td>
+<td>Não definido por esta documentação</td>
+<td>Topologia proposta abaixo, ainda a implementar</td>
+</tr>
+</tbody>
+</table>
+<p>Há pontos a reconciliar na implementação: asr_whisper.py importa ASR_COMPUTE_TYPE, ausente no config.py lido; as verificações de silêncio/clipping do validator não usam todos os limites declarados no config. Essas diferenças não foram corrigidas por este documento. O nome asr_openai.py não significa consumo de API remota: o módulo lido carrega Whisper localmente.</p><div class="footer">SiPlug Dubber • Arquitetura proposta • 08/09/2026</div></section>
+<section class="page" id="section-2"><h2>2. Princípios da arquitetura limpa SiPlug</h2><p>Cada arquivo tem uma responsabilidade verificável. Uma classe principal por arquivo; DTO de entrada e DTO de saída em arquivos próprios. Controller não consulta banco. Caso de uso não contém SQL nem conhece Model do ORM. Repositório não decide permissão nem monta resposta HTTP. Entidade e DTO não executam rede nem carregam motores de IA.</p>
+<p>Preservamos os conceitos de Entities, services, Dtos, interfaces de repositório e UseCases. Em Python, módulos e pastas usam snake_case; classes mantêm nomes explícitos, como VoiceEntity, IVoicesRepository, FindVoiceByUniqueIdService e SubmitDubbingMessageDtoIn. O estilo não depende da linguagem PHP: depende da responsabilidade e do sentido das dependências.</p>
+<pre><code class="language-text">Backend SiPlug
+  → Rota HTTP / middleware de autenticação
+  → Permissão declarada para o endpoint
+  → Controller
+  → DTO de entrada do caso de uso
+  → Caso de uso
+  → Serviços das entidades e contratos de aplicação
+  → Interfaces de repositório
+  → Implementações de repositório
+  → MySQL
+</code></pre>
+<p>Domínio e aplicação não importam FastAPI, SQLAlchemy, cliente de storage ou PyTorch. Esses detalhes ficam nos adaptadores externos. O ponto de composição associa contratos às implementações e injeta as dependências por construtor; não espalha buscas globais de dependências pelos serviços.</p>
+<p>Na proposta, a entidade representa estado e invariantes, sem persistência automática. O serviço da entidade coordena sua operação e chama o repositório. Isso evita acoplamento Entity → Repository → Entity. O padrão legado Entity.create() encontrado em outras APIs não é reproduzido automaticamente: preservar a divisão de responsabilidades tem prioridade sobre copiar esse acoplamento.</p><div class="footer">SiPlug Dubber • Arquitetura proposta • 08/09/2026</div></section>
+<section class="page" id="section-3"><h2>3. Responsabilidade de cada camada</h2><table>
+<thead>
+<tr>
+<th>Camada / arquivo</th>
+<th>Responsabilidade</th>
+<th>Não deve fazer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>routes/api.py</td>
+<td>Declarar endpoints, schemas HTTP e permissões</td>
+<td>Executar fluxos de negócio dentro da rota</td>
+</tr>
+<tr>
+<td>resolve_actor_authorization_middleware.py</td>
+<td>Validar Bearer, estados e criar actor</td>
+<td>Aceitar officeId ou permissões do JSON como autoridade</td>
+</tr>
+<tr>
+<td>require_permission_dependency.py</td>
+<td>Exigir a permissão da rota antes do controller</td>
+<td>Implementar bypass pelo nome do cargo</td>
+</tr>
+<tr>
+<td>authorized_actor.py</td>
+<td>Contexto imutável de usuário, vínculo, escritório e permissões</td>
+<td>Transportar token ou senha para o caso de uso</td>
+</tr>
+<tr>
+<td>Controller</td>
+<td>Adaptar HTTP para DTO; chamar caso de uso; mapear saída</td>
+<td>Abrir sessão SQL, chamar ORM ou gerar áudio</td>
+</tr>
+<tr>
+<td>HTTP schema</td>
+<td>Validar forma HTTP e nomes JSON, como voiceId</td>
+<td>Conter regra de autorização ou consultar banco</td>
+</tr>
+<tr>
+<td>UseCaseDtoIn</td>
+<td>Contrato imutável da operação, independente do transporte</td>
+<td>Receber Request, ORM Model ou sessão de banco</td>
+</tr>
+<tr>
+<td>UseCaseDtoOut</td>
+<td>Resultado da operação</td>
+<td>Expor segredo, caminho interno ou dependência HTTP</td>
+</tr>
+<tr>
+<td>UseCaseService</td>
+<td>Coordenar serviços, autorização de recursos e transação</td>
+<td>Conter SELECT/UPDATE, FFmpeg ou acesso direto ao filesystem</td>
+</tr>
+<tr>
+<td>Entity</td>
+<td>Estado e invariantes locais do domínio</td>
+<td>Ler request, env, banco ou modelo de IA</td>
+</tr>
+<tr>
+<td>Entity service</td>
+<td>Operação pequena e reutilizável sobre uma entidade</td>
+<td>Controlar todo o fluxo de chat e processamento</td>
+</tr>
+<tr>
+<td>Entity service DTOs</td>
+<td>Contratos de entrada e saída da operação da entidade</td>
+<td>Repassar parâmetros indefinidos sem validação</td>
+</tr>
+<tr>
+<td>IRepository</td>
+<td>Contrato de persistência com escopo explícito</td>
+<td>Retornar Query, Session ou Model do ORM</td>
+</tr>
+<tr>
+<td>Repository</td>
+<td>Consultas, persistência e mapeamento para domínio</td>
+<td>Descobrir usuário autenticado ou montar JSON HTTP</td>
+</tr>
+<tr>
+<td>ORM Model</td>
+<td>Mapear tabelas, colunas, índices e relações</td>
+<td>Conter fluxo completo de dublagem</td>
+</tr>
+<tr>
+<td>Resource authorization service</td>
+<td>Verificar escritório, proprietário e associações</td>
+<td>Tratar existência do ID como autorização</td>
+</tr>
+<tr>
+<td>IUnitOfWork</td>
+<td>Contrato de transação dos casos de uso</td>
+<td>Expor SQL ao domínio</td>
+</tr>
+<tr>
+<td>SqlAlchemyUnitOfWork</td>
+<td>Gerenciar sessão, commit e rollback</td>
+<td>Abrir transação durante inferência longa</td>
+</tr>
+<tr>
+<td>IMediaStorage / adaptador</td>
+<td>Gravar, verificar e acessar arquivos privados</td>
+<td>Aceitar caminhos arbitrários do consumidor</td>
+</tr>
+<tr>
+<td>IAudioEngine / adaptador</td>
+<td>Executar síntese, reconhecimento ou conversão</td>
+<td>Conhecer usuário HTTP ou montar resposta de chat</td>
+</tr>
+<tr>
+<td>Worker entrypoint</td>
+<td>Obter dependências e executar caso de uso de processamento</td>
+<td>Duplicar regras dos casos de uso</td>
+</tr>
+<tr>
+<td>Scheduler entrypoint</td>
+<td>Executar recuperação e limpeza controlada</td>
+<td>Alterar tabelas diretamente fora dos serviços</td>
+</tr>
+<tr>
+<td>providers/container.py</td>
+<td>Montar dependências para API, worker e scheduler</td>
+<td>Rodar negócio durante importação</td>
+</tr>
+<tr>
+<td>Exception handler</td>
+<td>Mapear erros de domínio para HTTP e logs</td>
+<td>Converter indiscriminadamente qualquer erro em 500</td>
+</tr>
+<tr>
+<td>Migration</td>
+<td>Evoluir schema e restrições</td>
+<td>Criar credenciais reais automaticamente</td>
+</tr>
+</tbody>
+</table>
+<p>DTOs validam invariantes locais: ID não vazio, tipo, intervalo e combinação texto/arquivo. Existência, estado, escritório e propriedade pertencem aos serviços. No FastAPI, validação por Pydantic fica no transporte; DTOs internos podem ser dataclasses imutáveis. Não criar cópias de dados sem finalidade: schemas HTTP justificam aliases/validação do transporte, DTOs justificam independência do caso de uso.</p><div class="footer">SiPlug Dubber • Arquitetura proposta • 08/09/2026</div></section>
+<section class="page" id="section-4"><h2>4. Estrutura de diretórios proposta</h2><pre><code class="language-text">dubber/
+├── docker-compose.yml                  # infraestrutura local futura
+├── .docker/
+│   ├── python/
+│   │   ├── Dockerfile.API.DEV           # API, banco e dependências leves
+│   │   └── Dockerfile.WORKER.DEV        # worker, FFmpeg e modelos Python
+│   └── mysql/data/                      # persistência local, fora do Git
+├── src/
+│   ├── app/
+│   │   ├── main.py                      # composição da aplicação HTTP
+│   │   ├── routes/api.py
+│   │   ├── http/
+│   │   │   ├── controllers/submit_dubbing_message_controller.py
+│   │   │   ├── schemas/submit_dubbing_message_request.py
+│   │   │   ├── middleware/resolve_actor_authorization_middleware.py
+│   │   │   ├── dependencies/require_permission_dependency.py
+│   │   │   └── exception_handlers.py
+│   │   ├── entities/
+│   │   │   ├── voice/
+│   │   │   │   ├── voice_entity.py
+│   │   │   │   ├── i_voices_repository.py
+│   │   │   │   └── services/find_voice_by_unique_id/
+│   │   │   │       ├── find_voice_by_unique_id_service.py
+│   │   │   │       └── dtos/
+│   │   │   │           ├── find_voice_by_unique_id_dto_in.py
+│   │   │   │           └── find_voice_by_unique_id_dto_out.py
+│   │   │   ├── dubbing_chat/
+│   │   │   ├── dubbing_message/
+│   │   │   ├── dubbing_job/
+│   │   │   └── ...                      # demais entidades documentadas
+│   │   ├── use_cases/submit_dubbing_message/
+│   │   │   ├── submit_dubbing_message_use_case_service.py
+│   │   │   └── dtos/
+│   │   │       ├── submit_dubbing_message_dto_in.py
+│   │   │       └── submit_dubbing_message_dto_out.py
+│   │   ├── interfaces/
+│   │   │   ├── i_unit_of_work.py
+│   │   │   ├── i_media_storage.py
+│   │   │   └── i_audio_engine.py
+│   │   ├── services/
+│   │   │   ├── voice/voices_repository.py
+│   │   │   ├── dubbing_job/dubbing_jobs_repository.py
+│   │   │   ├── actor/authorized_actor.py
+│   │   │   ├── authorization/require_dubbing_resource_access_service.py
+│   │   │   ├── transactions/sqlalchemy_unit_of_work.py
+│   │   │   ├── storage/local_media_storage.py
+│   │   │   └── audio_engine/xtts_audio_engine.py
+│   │   ├── models/                     # modelos SQLAlchemy
+│   │   ├── audio/                      # validação, normalização e exportação
+│   │   ├── engines/                    # motores atuais adaptados
+│   │   ├── workers/main.py
+│   │   ├── scheduler/main.py
+│   │   ├── exceptions/
+│   │   ├── config/settings.py
+│   │   └── providers/container.py
+│   ├── database/migrations/            # Alembic
+│   ├── tests/unit/
+│   ├── tests/integration/
+│   ├── tests/http/
+│   ├── pyproject.toml
+│   └── requirements.lock               # nome proposto; gerador a definir
+└── docs/
+    ├── DOC_BANCO_DE_DADOS_SIPLUG_DUBBER.html
+    ├── DOC_ARQUITETURA_SIPLUG_DUBBER.html
+    └── DOC_ARQUITETURA_SIPLUG_DUBBER.md
+</code></pre>
+<p>A árvore representa o alvo completo; a etapa inicial já implementa parte das pastas e contratos. A interface desktop foi removida na limpeza. Os motores anteriores estão em legacy/audio_reference/ apenas para consulta e migração; o entrypoint HTTP está em src/app/main.py. A API não importa engines/ ou PyTorch no boot; somente o ponto de composição do worker carrega esses adaptadores.</p><div class="footer">SiPlug Dubber • Arquitetura proposta • 08/09/2026</div></section>
+<section class="page" id="section-5"><h2>5. Identificadores, entidades, DTOs e repositórios</h2><p>Regra do banco: id numérico é técnico; _id é VARCHAR(255) e identifica o domínio. Todo *_id de relacionamento usa VARCHAR(255) e referencia _id do destino. Nenhum contrato externo usa o id numérico.</p>
+<p>No SQL e nos atributos Python: office_id, voice_sample_id, input_message_id. Nos contratos JSON da SiPlug: officeId, voiceSampleId, inputMessageId. Schemas de transporte fazem o mapeamento; o caso de uso não conhece aliases HTTP. A classe pode representar a coluna _id como unique_id para evitar nomes privados ambíguos; esse valor continua sendo exclusivamente o _id do banco.</p>
+<p>Exemplo ilustrativo, em arquivos separados:</p>
+<pre><code class="language-python"># entities/voice/i_voices_repository.py
+from typing import Protocol
+from .voice_entity import VoiceEntity
+
+class IVoicesRepository(Protocol):
+    def find_by_unique_id(self, office_id: str, unique_id: str) -&gt; VoiceEntity | None:
+        ...
+</code></pre>
+<p>FindVoiceByUniqueIdDtoIn carrega office_id e unique_id. FindVoiceByUniqueIdService consulta IVoicesRepository e devolve seu DTO de saída. VoicesRepository usa os dois filtros e converte ORM em domínio. Não devolve consulta incompleta para o controller filtrar depois.</p>
+<p>SubmitDubbingMessageDtoIn carrega actor, chat_id, operation, voice_id, text ou media_file_id, parâmetros e idempotency_key. O caso de uso chama serviços para resolver chat, arquivo, voz e amostra pronta; grava o snapshot no job. SubmitDubbingMessageDtoOut devolve chat_id, message_id, job_id e processing_state. Token e storage_key não integram a resposta.</p>
+<p>IUnitOfWork delimita a transação. Os repositórios envolvidos compartilham a mesma sessão daquela unidade de trabalho; não abrem conexões independentes ou fazem commits por conta própria. O mapeamento de exceptions preserva erro de autorização, validação e conflito, sem mascará-los como falha genérica. Sessões devem ter ciclo de vida e transação explícitos, conforme a <a href="https://docs.sqlalchemy.org/en/20/orm/session_basics.html">documentação de sessões do SQLAlchemy</a>.</p><div class="footer">SiPlug Dubber • Arquitetura proposta • 08/09/2026</div></section>
+<section class="page" id="section-6"><h2>6. Tecnologias utilizadas e propostas</h2><table>
+<thead>
+<tr>
+<th>Componente</th>
+<th>Tecnologia</th>
+<th>Situação</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Linguagem da API e worker</td>
+<td>Python</td>
+<td>Decisão confirmada; motores atuais já são Python</td>
+</tr>
+<tr>
+<td>HTTP da API</td>
+<td>FastAPI + Uvicorn</td>
+<td>Proposto, ainda não implementado</td>
+</tr>
+<tr>
+<td>Schemas HTTP e configuração</td>
+<td>Pydantic / pydantic-settings</td>
+<td>Proposto; restrito ao transporte/configuração</td>
+</tr>
+<tr>
+<td>DTOs internos</td>
+<td>dataclasses imutáveis</td>
+<td>Proposto; domínio independente do HTTP</td>
+</tr>
+<tr>
+<td>Contratos</td>
+<td>Protocol ou ABC</td>
+<td>Proposto; interfaces explícitas para repositório, storage e motores</td>
+</tr>
+<tr>
+<td>ORM e transações</td>
+<td>SQLAlchemy</td>
+<td>Proposto, restrito à persistência e Unit of Work</td>
+</tr>
+<tr>
+<td>Driver MySQL</td>
+<td>Driver compatível com a abordagem síncrona inicial, como PyMySQL</td>
+<td>Proposto; versão a fixar com o conjunto</td>
+</tr>
+<tr>
+<td>Migrations</td>
+<td>Alembic</td>
+<td>Proposto; implementação das 26 tabelas documentadas</td>
+</tr>
+<tr>
+<td>Banco</td>
+<td>MySQL / InnoDB</td>
+<td>Referências usam 8.0 e 8.4; proposta segue família 8.4 do Commerce</td>
+</tr>
+<tr>
+<td>Fila inicial</td>
+<td>dubbing_jobs no MySQL</td>
+<td>Persistência durável e reivindicação pelo worker; não exige Redis na primeira versão</td>
+</tr>
+<tr>
+<td>Síntese</td>
+<td>PyTorch + TTS/XTTS</td>
+<td>Encontrado no código atual</td>
+</tr>
+<tr>
+<td>Transcrição</td>
+<td>Whisper/faster-whisper</td>
+<td>Encontrado; escolher adaptador e testar suporte a timestamps</td>
+</tr>
+<tr>
+<td>Áudio</td>
+<td>FFmpeg, NumPy, SoundFile, librosa</td>
+<td>Encontrado no código atual</td>
+</tr>
+<tr>
+<td>Arquivos</td>
+<td>Volume privado compartilhado</td>
+<td>Proposto inicialmente; adaptador permite evolução para storage externo</td>
+</tr>
+<tr>
+<td>Testes</td>
+<td>pytest</td>
+<td>Proposto, com testes unitários, HTTP, persistência e motores</td>
+</tr>
+<tr>
+<td>Qualidade</td>
+<td>Ruff e verificação de tipos, como mypy</td>
+<td>Proposto; configuração e versões devem ser fixadas</td>
+</tr>
+<tr>
+<td>Dependências</td>
+<td>pyproject.toml e lock reproduzível</td>
+<td>Proposto; não copiar a .venv local para a imagem</td>
+</tr>
+</tbody>
+</table>
+<p>Versões exatas de Python, bibliotecas e imagens devem ser congeladas após validar o conjunto com os motores atuais. Esta documentação não declara compatibilidade de versões ainda não testadas. O arquivo de lock deve identificar dependências da API e do worker; a imagem da API não precisa carregar bibliotecas pesadas de inferência.</p>
+<p>CPU é a referência inicial para validar o fluxo. GPU depende do host, runtime e imagens apropriadas; não pressupor que o Docker Linux terá acesso ao GPU do Mac. Selecionar outro idioma não implementa tradução automaticamente. OpenVoice permanece fora da lista de recursos implementados.</p><div class="footer">SiPlug Dubber • Arquitetura proposta • 08/09/2026</div></section>
+<section class="page" id="section-7"><h2>7. Padrão Docker observado nas referências</h2><table>
+<thead>
+<tr>
+<th>Projeto</th>
+<th>HTTP no host</th>
+<th>Banco no host</th>
+<th>Características</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Agents</td>
+<td>8084 → 80</td>
+<td>3322 → 3306</td>
+<td>app, db, .docker/php/Dockerfile.DEV, src em /var/www/html</td>
+</tr>
+<tr>
+<td>Notifications</td>
+<td>8081 → 80</td>
+<td>3318 → 3306</td>
+<td>app, db, docker/php/Dockerfile.DEV e local.ini</td>
+</tr>
+<tr>
+<td>Logs</td>
+<td>8080 → 81</td>
+<td>3319 → 3306</td>
+<td>app, db; porta interna HTTP diferente</td>
+</tr>
+<tr>
+<td>Communications</td>
+<td>8083 → 80</td>
+<td>3321 → 3306</td>
+<td>app, db e .docker/php/Dockerfile.DEV</td>
+</tr>
+<tr>
+<td>Commerce</td>
+<td>Nginx 8086 → 80</td>
+<td>3307 → 3306</td>
+<td>PHP-FPM, Nginx, MySQL 8.4, Redis, MinIO, worker e scheduler</td>
+</tr>
+</tbody>
+</table>
+<p>Elementos preservados no Dubber: serviço app, código em ./src, working_dir /var/www/html, Dockerfiles dentro de .docker, banco MySQL persistente, rede local do projeto e rede compartilhada rede_internal. Worker e scheduler separados seguem a organização do Commerce, mas executam Python.</p>
+<p>Não copiar PHP-FPM, Composer, Apache ou local.ini para a aplicação Python. A API usa Uvicorn em 8000. O gateway/reverse proxy de publicação pode ser fornecido pela infraestrutura SiPlug; um Nginx próprio é opcional. A porta interna não precisa ser 80 para preservar o padrão arquitetural.</p>
+<p>Os arquivos antigos declaram version: '3.2'; o Commerce não declara version. O exemplo proposto segue a segunda forma. Não copiar senhas demonstrativas das referências como credenciais de implantação.</p><div class="footer">SiPlug Dubber • Arquitetura proposta • 08/09/2026</div></section>
+<section class="page" id="section-8"><h2>8. Serviços, redes e volumes do Dubber</h2><table>
+<thead>
+<tr>
+<th>Serviço</th>
+<th>Papel</th>
+<th>Redes</th>
+<th>Persistência e portas</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>app</td>
+<td>API FastAPI/Uvicorn</td>
+<td>local + rede_internal</td>
+<td>./src e mídia privada; host 8087 → 8000, sugestão</td>
+</tr>
+<tr>
+<td>db</td>
+<td>MySQL do Dubber</td>
+<td>local</td>
+<td>./.docker/mysql/data:/var/lib/mysql; host 3323 → 3306, opcional</td>
+</tr>
+<tr>
+<td>worker</td>
+<td>Reivindicar jobs e gerar áudio</td>
+<td>local</td>
+<td>./src, mídia privada e cache de modelos; sem porta pública</td>
+</tr>
+<tr>
+<td>scheduler</td>
+<td>Recuperar concessões expiradas e limpar órfãos com segurança</td>
+<td>local</td>
+<td>./src e mídia privada; sem porta pública</td>
+</tr>
+</tbody>
+</table>
+<p>8087 e 3323 não aparecem nos cinco Compose comparados, mas não houve inspeção das portas realmente em uso no computador. Confirmar disponibilidade antes de implementar. O backend dentro da rede compartilhada usa http://siplug-dubber-api:8000/api, não localhost:8087. MySQL usa db:3306 dentro dos containers.</p>
+<p>A rede local não é compartilhada deliberadamente com as outras APIs. Isso não equivale à opção Docker internal: true; política de saída para baixar modelos/integrações deve ser definida. rede_internal é uma rede externa que precisa existir. O alias siplug-dubber-api evita depender do nome genérico app usado em várias aplicações.</p>
+<p>Mídia em /var/lib/dubber/media, fora da raiz do código e de qualquer diretório público. Modelos em /var/cache/dubber/models. O servidor entrega arquivos somente após autorização. API e worker compartilham os mesmos caminhos; UID/GID e permissões do volume precisam ser compatíveis, sem usar chmod 777 como estratégia.</p><div class="footer">SiPlug Dubber • Arquitetura proposta • 08/09/2026</div></section>
+<section class="page" id="section-9"><h2>9. Esqueleto Compose proposto</h2><p>Exemplo documental, ainda não executável no projeto: faltam os Dockerfiles, a API, o worker, o scheduler, configuração e dependências. Não salvar na raiz e esperar que o desktop atual se transforme em API automaticamente.</p>
+<pre><code class="language-yaml">name: siplug-dubber
+
+x-runtime: &amp;runtime
+  working_dir: /var/www/html
+  env_file:
+    - ./src/.env
+  volumes:
+    - ./src:/var/www/html
+    - media_data:/var/lib/dubber/media
+  depends_on:
+    db:
+      condition: service_healthy
+  networks: [local]
+
+services:
+  app:
+    &lt;&lt;: *runtime
+    build:
+      context: .
+      dockerfile: ./.docker/python/Dockerfile.API.DEV
+    command: [python, -m, uvicorn, app.main:app, --host, 0.0.0.0, --port, &quot;8000&quot;]
+    ports:
+      - &quot;127.0.0.1:${DUBBER_HTTP_PORT:-8087}:8000&quot;
+    healthcheck:
+      test: [CMD, python, -c, &quot;import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=3)&quot;]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      local:
+      rede_internal:
+        aliases: [siplug-dubber-api]
+
+  db:
+    image: ${DUBBER_MYSQL_IMAGE:?Defina uma imagem MySQL 8.4 validada}
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: siplug_dubber
+      MYSQL_USER: siplug_dubber
+      MYSQL_PASSWORD: ${DUBBER_DB_PASSWORD:?Defina a senha da aplicacao}
+      MYSQL_ROOT_PASSWORD: ${DUBBER_DB_ROOT_PASSWORD:?Defina a senha administrativa}
+      TZ: UTC
+    ports:
+      - &quot;127.0.0.1:${DUBBER_DB_PORT:-3323}:3306&quot;
+    volumes:
+      - ./.docker/mysql/data:/var/lib/mysql
+    healthcheck:
+      test: [&quot;CMD-SHELL&quot;, 'MYSQL_PWD=&quot;$${MYSQL_PASSWORD}&quot; mysql -h 127.0.0.1 -u &quot;$${MYSQL_USER}&quot; &quot;$${MYSQL_DATABASE}&quot; -e &quot;SELECT 1&quot; &gt;/dev/null 2&gt;&amp;1']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [local]
+
+  worker:
+    &lt;&lt;: *runtime
+    build:
+      context: .
+      dockerfile: ./.docker/python/Dockerfile.WORKER.DEV
+    command: [python, -m, app.workers.main]
+    init: true
+    stop_grace_period: 16m
+    volumes:
+      - ./src:/var/www/html
+      - media_data:/var/lib/dubber/media
+      - model_cache:/var/cache/dubber/models
+
+  scheduler:
+    &lt;&lt;: *runtime
+    build:
+      context: .
+      dockerfile: ./.docker/python/Dockerfile.API.DEV
+    command: [python, -m, app.scheduler.main]
+
+volumes:
+  media_data:
+  model_cache:
+
+networks:
+  local:
+  rede_internal:
+    external: true
+</code></pre>
+<p>Dockerfile.API.DEV: imagem Python de versão fixada, diretório /var/www/html, instalação das dependências leves a partir do lock e usuário sem privilégios de root para executar a aplicação. Dependências devem ser instaladas fora do diretório substituído pelo bind mount; por exemplo, ambiente em /opt/venv.</p>
+<p>Dockerfile.WORKER.DEV: mesma base Python compatível, dependências de persistência e domínio, bibliotecas dos motores, FFmpeg e libsndfile quando necessário. Cache de modelos separado. Não baixar modelos em cada job. Dependências e pesos de modelo precisam de versões identificáveis; modelo não disponível significa worker sem prontidão para processar.</p>
+<p>Não montar a .venv do macOS no Linux. Ignorar .git, .venv, dados, logs e segredos no contexto de build por .dockerignore. Bind mounts são configuração de desenvolvimento; em publicação, construir imagens imutáveis com o código e implantar configuração/segredos externamente.</p>
+<p>A relação entre depends_on e service_healthy segue a <a href="https://docs.docker.com/compose/how-tos/startup-order/">documentação de inicialização do Docker Compose</a>. Healthcheck da API verifica o endpoint proposto. Não prova que o worker ou modelo estão prontos. Implementar verificação separada de worker e supervisão dos processos; não anunciar prontidão de inferência apenas porque HTTP responde. O stop_grace_period é um valor inicial, a alinhar com os limites reais dos jobs e do ambiente de publicação.</p><div class="footer">SiPlug Dubber • Arquitetura proposta • 08/09/2026</div></section>
+<section class="page" id="section-10"><h2>10. Configuração centralizada</h2><table>
+<thead>
+<tr>
+<th>Arquivo / variável</th>
+<th>Uso proposto</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>.env na raiz do Compose</td>
+<td>Imagem MySQL, portas e senhas usadas na interpolação do Compose</td>
+</tr>
+<tr>
+<td>src/.env</td>
+<td>Configuração dos processos Python; não versionar valores reais</td>
+</tr>
+<tr>
+<td>app/config/settings.py</td>
+<td>Ler e validar ambiente uma vez; injetar configuração nos adaptadores</td>
+</tr>
+<tr>
+<td>DB_HOST / DB_PORT</td>
+<td>db / 3306</td>
+</tr>
+<tr>
+<td>DB_DATABASE / DB_USERNAME</td>
+<td>siplug_dubber / siplug_dubber</td>
+</tr>
+<tr>
+<td>DB_PASSWORD</td>
+<td>Mesmo valor configurado no Compose para o usuário da aplicação</td>
+</tr>
+<tr>
+<td>DUBBER_MEDIA_ROOT</td>
+<td>/var/lib/dubber/media</td>
+</tr>
+<tr>
+<td>DUBBER_MODEL_CACHE</td>
+<td>/var/cache/dubber/models</td>
+</tr>
+<tr>
+<td>DUBBER_JOB_POLL_SECONDS</td>
+<td>Intervalo de consulta de jobs; proposta inicial 2 segundos</td>
+</tr>
+<tr>
+<td>DUBBER_JOB_TIMEOUT_SECONDS</td>
+<td>Prazo máximo de processamento; definir com limites de entrada e medições</td>
+</tr>
+<tr>
+<td>DUBBER_WORKER_CONCURRENCY</td>
+<td>Proposta inicial 1 por worker; aumentar somente após medir memória/CPU</td>
+</tr>
+<tr>
+<td>DUBBER_WORKER_LEASE_SECONDS</td>
+<td>Prazo de posse do job; renovado durante execução válida</td>
+</tr>
+<tr>
+<td>DUBBER_MAX_JOB_ATTEMPTS</td>
+<td>Limite de tentativas antes de falha definitiva</td>
+</tr>
+</tbody>
+</table>
+<p>Nomes DUBBER_* são propostos, não variáveis já implementadas. env_file injeta ambiente no container; não alimenta a interpolação ${...} do Compose. Manter arquivos .env.example sem segredos. Não ler os.environ dentro de entidades, DTOs e casos de uso. Versões de modelo e limites configurados devem ficar registrados no snapshot do job.</p>
+<p>Não armazenar Bearer administrativo em frontend. Credenciais de integração externas permanecem no backend. Logs de operação incluem IDs de correlação, estado e duração, sem tokens, texto integral, áudios ou dados sensíveis. A imagem da API deve falhar na inicialização se faltar configuração obrigatória.</p><div class="footer">SiPlug Dubber • Arquitetura proposta • 08/09/2026</div></section>
+<section class="page" id="section-11"><h2>11. Processamento assíncrono com banco como fila inicial</h2><p>A API recebe a solicitação e devolve 202 com jobId. Mensagem, entrada e job são criados em transação curta. Não é necessária uma publicação adicional em broker para tornar o trabalho visível: o worker consulta dubbing_jobs. Isso evita introduzir Redis/Celery antes de haver necessidade demonstrada.</p>
+<p>O caso de uso ClaimNextDubbingJob usa um serviço de entidade e método de repositório para selecionar um job queued de forma concorrente segura. O repositório pode implementar seleção com bloqueio e SKIP LOCKED no MySQL escolhido, atualizar processing_state, worker_token, locked_until e attempts e encerrar a transação. Nenhum SELECT ou UPDATE fica no entrypoint do worker ou no caso de uso.</p>
+<p>Depois da posse, o worker obtém arquivos e chama IAudioEngine fora da transação. A interface recebe entrada autorizada, amostra selecionada, parâmetros e deadline. A implementação invoca os motores Python atuais. Não é necessário um servidor HTTP interno de engine separado: a separação inicial é de processo e de camadas, com API leve e worker dedicado.</p>
+<p>O processamento pesado não pode bloquear o event loop da API. Para a primeira implementação, sessões de banco síncronas e endpoints síncronos podem ser usados de forma coerente; não declarar tudo async e executar ORM síncrono/inferência bloqueante dentro do event loop. Essa distinção acompanha a <a href="https://fastapi.tiangolo.com/async/">documentação de concorrência do FastAPI</a>.</p>
+<p>Durante a execução, renovar a posse por mecanismo que continue funcionando mesmo durante inferência bloqueante. Supervisionar processamento em subprocesso ou mecanismo equivalente para aplicar timeout/cancelamento. Cada tentativa escreve em diretório próprio. Um worker cuja posse expirou não pode publicar resultado: a atualização final precisa comparar worker_token e estado vigente.</p>
+<p>O scheduler recupera jobs com concessão expirada usando serviços/repositórios e atualizações condicionais. Recoloca em queued quando permitido ou marca failed ao exceder limite. Começar com uma instância; múltiplas instâncias exigem exclusão mútua no banco. Não recuperar um job com heartbeat válido. Não apagar arquivos temporários de execuções ativas.</p>
+<p>A conclusão registra arquivos, outputs, resposta assistant e vínculos em transação idempotente. Arquivos precisam existir antes de marcar completed. Banco e filesystem não compartilham transação: limpar órfãos e reparar publicações incompletas por rotinas controladas. Os estados da documentação do banco continuam: status active/inactive; processing_state queued/processing/completed/failed/cancelled.</p>
+<p>Uma fila externa pode ser introduzida depois via contrato. Redis/Celery seriam opções futuras, não serviços obrigatórios desta versão. Se adicionados, definir formato da mensagem, publicação após commit, recuperação de falhas entre banco e broker e deduplicação. O banco permanece a fonte do estado de negócio.</p><div class="footer">SiPlug Dubber • Arquitetura proposta • 08/09/2026</div></section>
+<section class="page" id="section-12"><h2>12. Exemplo completo: texto ou áudio no chat</h2><ol>
+<li>Middleware valida Authorization: Bearer contra user_customers, users e offices ativos; forma AuthorizedActor no servidor.</li>
+<li>A dependência da rota exige dubbing.generate. O controller valida o schema HTTP e monta SubmitDubbingMessageDtoIn com o actor.</li>
+<li>O caso de uso consulta chat, voz e arquivo por serviços; verifica escritório, proprietário e amostra pronta. Seleção enviada é identificador de recurso, não identidade autorizada.</li>
+<li>Para texto, captura input_text e operation=text_to_speech. Para áudio, captura input_file_id e operation=speech_to_speech. Cada execução guarda voice_sample_id, idioma, velocidade, pitch, preserve_timing e parâmetros.</li>
+<li>Em transação, cria mensagem, anexos e job. A combinação office_id + user_customer_id + idempotency_key é única. Mesmo conteúdo normalizado retorna o job existente; conteúdo diferente na mesma chave retorna conflito. Tratar também a violação concorrente do índice único.</li>
+<li>A API retorna 202. O frontend da SiPlug acompanha o job por chamadas ao próprio backend, que consulta o Dubber.</li>
+<li>O worker reivindica o job e usa o motor adequado. Se houver reconhecimento, grava transcrição e segmentos por serviços de domínio/persistência após o processamento.</li>
+<li>O resultado cria media_files, dubbing_job_outputs, mensagem assistant/result e anexos. WAV e MP3 podem coexistir.</li>
+<li>Download é autorizado por escritório e propriedade. Salvar no projeto cria project_audio_links após a SiPlug validar o projeto externo.</li>
+</ol>
+<p>Modificar a voz selecionada no chat não muda a amostra registrada em jobs antigos. Alterar texto já aceito gera nova mensagem/execução ou versão explícita, sem reescrever o histórico.</p><div class="footer">SiPlug Dubber • Arquitetura proposta • 08/09/2026</div></section>
+<section class="page" id="section-13"><h2>13. Contratos HTTP propostos</h2><table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Resultado / controle</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET /api/v1/health</td>
+<td>Verificação básica sem dados sensíveis</td>
+</tr>
+<tr>
+<td>GET /api/v1/auth/context</td>
+<td>Contexto calculado pelo Bearer</td>
+</tr>
+<tr>
+<td>POST /api/v1/media-files</td>
+<td>Upload autorizado; validar formato, tamanho e duração</td>
+</tr>
+<tr>
+<td>GET /api/v1/voices</td>
+<td>Catálogo do escritório, com filtros e paginação</td>
+</tr>
+<tr>
+<td>POST /api/v1/voices</td>
+<td>Cadastrar voz e solicitar preparação de amostra</td>
+</tr>
+<tr>
+<td>POST /api/v1/dubbing-chats</td>
+<td>Criar conversa do vínculo autenticado</td>
+</tr>
+<tr>
+<td>POST /api/v1/dubbing-chats/{chatId}/messages</td>
+<td>Texto ou arquivo cadastrado; criar job idempotente</td>
+</tr>
+<tr>
+<td>GET /api/v1/dubbing-chats/{chatId}/messages</td>
+<td>Histórico autorizado e paginado</td>
+</tr>
+<tr>
+<td>GET /api/v1/dubbing-jobs/{jobId}</td>
+<td>Estado e resultados autorizados</td>
+</tr>
+<tr>
+<td>POST /api/v1/dubbing-jobs/{jobId}/cancel</td>
+<td>Solicitar cancelamento autorizado</td>
+</tr>
+<tr>
+<td>GET /api/v1/media-files/{fileId}/download</td>
+<td>Download protegido ou URL temporária</td>
+</tr>
+</tbody>
+</table>
+<p>São contratos propostos, não rotas existentes. Upload e geração separados evitam retransmitir o arquivo a cada retentativa. Respostas: 401 identidade inválida; 403 permissão ausente; 404 recurso indisponível no escopo; 409 conflito de estado/idempotência; 422 entrada inválida; 202 processamento aceito.</p>
+<p>Definição canônica de segurança permanece no documento de banco: user_customers.token autentica entrada; api_credentials.token guarda credencial externa. Biblioteca HTTP, CORS, rede Docker e frontend não substituem a validação no servidor. Política de Origin adicional, se adotada, deve contemplar as chamadas do backend e não ser tratada como identidade.</p><div class="footer">SiPlug Dubber • Arquitetura proposta • 08/09/2026</div></section>
+<section class="page" id="section-14"><h2>14. Testes, implantação e migração</h2><p>Unitários: DTOs, invariantes, seleção de operação, autorização de recursos e casos de uso com contratos substituíveis. Integração: repositórios reais, filtros office_id, FKs para _id, Unit of Work e concorrência de jobs. HTTP: 401/403, contexto falsificado, propriedade, upload/download e idempotência. Áudio: amostras pequenas para validação/normalização; inferência real em conjunto separado de testes.</p>
+<p>Cenários essenciais: texto → voz; áudio → voz selecionada; troca de voz sem alterar histórico; transcrição segmentada; trabalhador interrompido; resultado duplicado; cancelamento; falha de armazenamento; tentativa de outro escritório consultar arquivo/job; amostra rejeitada; modelo indisponível. Usar banco MySQL isolado para validar bloqueios e semântica de concorrência; SQLite sozinho não comprova esses comportamentos.</p>
+<p>Plano de implementação: congelar versões compatíveis; criar estrutura e imagens; implementar migrations das 26 tabelas; autenticação e permissões; cadastro/validação de vozes; chat e jobs; adaptação dos motores; worker/recuperação; importação legada com mapa de _id; integração das telas SiPlug; retirada do desktop após equivalência funcional.</p>
+<p>Na implantação futura: criar rede_internal se ausente; validar docker compose config; construir imagens; verificar readiness; executar migrations Alembic explicitamente; provisionar primeiro acesso pelo fluxo autorizado; testar consumidor real em homologação. Não executar limpeza de banco ou bootstrap indiscriminado em instalação existente. Manter backup de mídia, banco e configuração necessária à recuperação.</p>
+<p>Atualização: a etapa inicial criou Dockerfile.DEV, docker-compose.yml e API FastAPI com health/readiness, validados em containers com MySQL. Worker, scheduler, migrations de domínio e endpoints de negócio continuam pendentes. O exemplo acima é a arquitetura alvo; consulte o Compose da raiz e o README para a execução atual. Motores e desktop foram preservados.</p><div class="footer">SiPlug Dubber • Arquitetura proposta • 08/09/2026</div></section>
+</body></html>

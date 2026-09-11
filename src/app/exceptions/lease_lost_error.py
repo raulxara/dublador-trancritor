@@ -1,0 +1,2 @@
+class LeaseLostError(Exception):
+    pass

@@ -1,0 +1,9 @@
+from typing import Protocol
+
+from app.entities.dubbing_message.dubbing_message_entity import DubbingMessageEntity
+
+
+class IMessageRepository(Protocol):
+    def create(self, entity: DubbingMessageEntity) -> None: ...
+    def list(self, office_id: str, chat_id: str, limit: int, offset: int) -> list[DubbingMessageEntity]: ...
+    def find(self, office_id: str, chat_id: str, unique_id: str) -> DubbingMessageEntity | None: ...

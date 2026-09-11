@@ -1,0 +1,13 @@
+FROM python:3.11-slim-bookworm@sha256:528257d48c1da0dcecc2e725d1ae34498d60c965f1241e39cd6a85a8859bdf84
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 OMP_NUM_THREADS=2 MKL_NUM_THREADS=2
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg libsndfile1 build-essential && rm -rf /var/lib/apt/lists/*
+WORKDIR /var/www/html
+COPY src/requirements.lock /tmp/api.lock
+COPY src/requirements-worker.lock /tmp/worker.txt
+RUN python -m pip install -r /tmp/api.lock
+RUN python -m pip install torch==2.5.1+cpu torchaudio==2.5.1+cpu --index-url https://download.pytorch.org/whl/cpu
+RUN printf 'setuptools<81\n' > /tmp/build-constraints.txt && PIP_CONSTRAINT=/tmp/build-constraints.txt python -m pip install --extra-index-url https://download.pytorch.org/whl/cpu -r /tmp/worker.txt && python -m pip check
+RUN groupadd --gid 10001 dubber && useradd --uid 10001 --gid dubber --create-home dubber && mkdir -p /var/lib/dubber/media /var/cache/dubber/models && chown -R dubber:dubber /var/lib/dubber /var/cache/dubber
+COPY --chown=dubber:dubber src/ /var/www/html/
+USER dubber
+CMD ["python", "-m", "app.workers.main"]

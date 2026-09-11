@@ -1,0 +1,234 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>SiPlug Dubber — Catálogo, projetos e mídia</title><style>
+@page{size:A4;margin:17mm 15mm 18mm}*{box-sizing:border-box}body{margin:0;color:#24313b;font:9.3pt -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.35}h1{font-size:27pt;margin:0 0 5px}h2{color:#0876b9;font:600 20pt Menlo,Consolas,monospace;margin:0 0 6px}h3{font-size:12pt;margin:13px 0 6px}.cover{height:245mm;padding-top:37mm}.cover-box{background:#111;color:#fff;text-align:center;padding:52px 20px 24px}.cover-box h1{letter-spacing:1px}.cover-box p{font-size:14pt;color:#d6e0e5}.cover-meta{margin-top:80px;font-size:12pt;color:#dbe5ea}.callout{border:1px solid #d8e2e8;border-left:6px solid #009be8;background:#f4f8fa;padding:12px 14px;margin:18px 0}.stats{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid #d8e2e8}.stats div{padding:12px;border-right:1px solid #d8e2e8}.stats div:last-child{border:0}.stats small{display:block;color:#60738a;text-transform:uppercase}.page{break-after:page;page-break-after:always;position:relative;min-height:250mm;padding-bottom:16mm}.page:last-child{break-after:auto;page-break-after:auto}table{border-collapse:collapse;width:100%;margin:9px 0 11px;font-size:8pt}th{background:#111;color:#dbe6e8;text-align:left;padding:7px 6px}td{border:1px solid #dce5ea;padding:6px;vertical-align:top}td:first-child,code{color:#0073b8;font-family:Menlo,Consolas,monospace}.footer{position:absolute;bottom:0;border-top:1px solid #d8e2e8;width:100%;padding-top:7px;color:#60738a;font-size:8pt}.toc li{margin:7px 0}.muted{color:#60738a}.rule{background:#f8fafb;border-left:4px solid #0876b9;padding:8px 10px;margin:8px 0}.bad{border-left-color:#df6e25}.table-name{font-family:Menlo,Consolas,monospace;color:#0876b9}.avoid-break{break-inside:avoid}
+
+body{max-width:1100px;margin:auto;padding:26px}.page{min-height:0;padding-bottom:20px;margin-bottom:36px}.cover{height:auto;min-height:90vh}.footer{position:static;margin-top:20px}a{color:#0876b9}td{overflow-wrap:anywhere}tr{break-inside:avoid}thead{display:table-header-group}h2{overflow-wrap:anywhere}.schema-nav{columns:2}svg{width:100%;height:auto}@media print{body{padding:0;max-width:none}.cover{min-height:235mm}.page{margin-bottom:0}.schema-nav{columns:2}a{text-decoration:none}table{font-size:7.6pt}td,th{padding:5px}.no-print{display:none}}
+pre{background:#f3f7fa;border:1px solid #d8e2e8;padding:14px;overflow:auto;font-size:8.5pt;line-height:1.5}pre code{color:#24313b}h2{font-family:inherit}table{font-size:9pt}th{white-space:normal}.toc{columns:2}@media print{pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:7pt;break-inside:auto}table{font-size:7.8pt}.toc{columns:1}}</style></head><body><main><h1>Catálogo, projetos, transcrições e mídia — SiPlug Dubber</h1>
+<h2>Estado implementado em 11/09/2026</h2>
+<p>A revisão <code>0005_catalog_and_projects</code> completa as <strong>26 tabelas de domínio</strong> do modelo: tags, voice_tags e project_audio_links foram acrescentadas às 23 anteriores. A tabela de controle Alembic é adicional. IDs técnicos continuam INT; <code>_id</code> e todas as referências <code>*_id</code> são VARCHAR(255). Relações privadas usam FKs compostas com office_id, status active/inactive e bloqueio de exclusão física. external_project_id é uma referência externa, sem FK entre aplicações.</p>
+<p>Também foram implementadas edição versionada de transcrições, entrada de MP3/MP4 no chat e reconciliação automática de arquivos órfãos. O frontend continua na SiPlug. Este documento descreve o comportamento implementado; os documentos de banco/arquitetura conservam o desenho completo e registros históricos.</p>
+<h2>Responsabilidade dos arquivos</h2>
+<p>Os caminhos abaixo são relativos a src/app/. Cada operação tem controller, caso de uso, serviço e DTOs separados; nenhuma rota executa SQL ou usa token recebido no JSON.</p>
+<table>
+<thead>
+<tr>
+<th>Local</th>
+<th>Responsabilidade</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>entities/tag, project_audio_link, transcription/*_entity.py</td>
+<td>Entidades imutáveis; identificadores e dados de domínio</td>
+</tr>
+<tr>
+<td>entities/<em>/i_</em>_repository.py</td>
+<td>Contratos de persistência sem SQLAlchemy/FastAPI</td>
+</tr>
+<tr>
+<td>entities/tag/services/create_tag e update_tag</td>
+<td>Validar nome/slug/status e persistir a entidade</td>
+</tr>
+<tr>
+<td>entities/tag/services/list_tags e list_voice_tags</td>
+<td>Consultar catálogo e associações ativas</td>
+</tr>
+<tr>
+<td>entities/tag/services/set_voice_tags</td>
+<td>Validar voz/tags do escritório e substituir o conjunto, até 50 tags</td>
+</tr>
+<tr>
+<td>entities/project_audio_link/services/create_project_audio_link</td>
+<td>Validar resultado de áudio próprio e criar/reativar vínculo idempotente</td>
+</tr>
+<tr>
+<td>entities/project_audio_link/services/list_project_audio_links e unlink_project_audio</td>
+<td>Listar vínculos próprios e inativar sem apagar áudio</td>
+</tr>
+<tr>
+<td>entities/transcription/services/list_transcriptions e edit_transcription</td>
+<td>Histórico e criação de nova versão com controle de versão-base</td>
+</tr>
+<tr>
+<td><em>/dtos/</em>_dto_in.py e *_dto_out.py</td>
+<td>Contratos próprios de entrada/saída, em arquivos separados</td>
+</tr>
+<tr>
+<td>use_cases/<em>/</em>_use_case_service.py</td>
+<td>Permissão do actor, propriedade, serviços e transação</td>
+</tr>
+<tr>
+<td>models/catalog/*_repository.py</td>
+<td>SQL parametrizado, bloqueios e conversão de registros para entidades</td>
+</tr>
+<tr>
+<td>models/chat/sqlalchemy_chat_unit_of_work.py</td>
+<td>Uma conexão/transação por operação, incluindo os novos repositórios</td>
+</tr>
+<tr>
+<td>http/schemas/*_input.py</td>
+<td>Formato e limites HTTP; rejeita campos desconhecidos</td>
+</tr>
+<tr>
+<td>http/controllers/catalog/*_controller.py</td>
+<td>HTTP → DTO → caso de uso → resposta</td>
+</tr>
+<tr>
+<td>routes/catalog.py</td>
+<td>Declarar as rotas, incluídas no router autenticado</td>
+</tr>
+<tr>
+<td>services/media/normalize_media_service.py</td>
+<td>Converter bytes locais MP3/MP4 em WAV com FFmpeg e limites de tempo/duração</td>
+</tr>
+<tr>
+<td>services/media/media_publication_guard.py</td>
+<td>Bloqueio de filesystem compartilhado entre publicação e limpeza</td>
+</tr>
+<tr>
+<td>services/media/orphan_cleanup_service.py</td>
+<td>Examinar candidatos antigos e remover somente órfãos reconhecidos</td>
+</tr>
+<tr>
+<td>models/media/sqlalchemy_media_inventory_repository.py</td>
+<td>Consultar existência de qualquer registro media_files pela chave</td>
+</tr>
+<tr>
+<td>use_cases/cleanup_orphan_media</td>
+<td>Orquestrar reconciliação pelo contrato, sem acesso ao filesystem</td>
+</tr>
+<tr>
+<td>providers/container.py e scheduler_container.py</td>
+<td>Compor dependências HTTP e de manutenção</td>
+</tr>
+<tr>
+<td>scheduler/main.py</td>
+<td>Recuperar jobs e executar ciclos limitados de reconciliação</td>
+</tr>
+</tbody>
+</table>
+<h2>Permissões e escopo</h2>
+<p>Novas permissões: tag.read, tag.update, project_audio.read, project_audio.update e transcription.update. A migration concede-as explicitamente aos cargos admin ativos com user.update ativo. O bootstrap concede-as a novos administradores. Não há bypass administrativo em runtime. As credenciais existentes não são recriadas.</p>
+<p>Tags são compartilhadas dentro do escritório; gerenciamento exige tag.update. Associações de voz usam voice.read/voice.update. Transcrições e vínculos de projetos são privados ao proprietário do áudio/conversa, mesmo para outro usuário do mesmo escritório com as mesmas permissões. office_id, user_id e owner_id vêm exclusivamente do actor resolvido pelo Bearer.</p>
+<p>Erros: 401 sem autenticação, 403 sem permissão, 404 recurso indisponível/de outro escopo, 409 conflito de versão/slug ou saturação temporária do conversor, 422 conteúdo inválido.</p>
+<h2>Tags e associação com vozes</h2>
+<table>
+<thead>
+<tr>
+<th>Método e rota /api/v1</th>
+<th>Permissão</th>
+<th>Comportamento</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>POST /tags</td>
+<td>tag.update</td>
+<td>Cria tag, 201</td>
+</tr>
+<tr>
+<td>GET /tags</td>
+<td>tag.read</td>
+<td>Lista tags do escritório, inclusive inativas</td>
+</tr>
+<tr>
+<td>PUT /tags/{tag_id}</td>
+<td>tag.update</td>
+<td>Substitui nome, slug e status</td>
+</tr>
+<tr>
+<td>GET /voices/{voice_id}/tags</td>
+<td>voice.read</td>
+<td>Lista associações e tags ativas de voz ativa</td>
+</tr>
+<tr>
+<td>PUT /voices/{voice_id}/tags</td>
+<td>voice.update</td>
+<td>Substitui todo o conjunto de tags da voz</td>
+</tr>
+</tbody>
+</table>
+<p>POST /tags recebe <code>{"name":"Narrador","slug":"narrador"}</code>. PUT recebe também <code>"status":"active"</code> ou <code>"inactive"</code>. Nome tem 1–255 caracteres após trim; slug usa letras ASCII minúsculas, números e hífens internos, até 255 caracteres. O slug é único por escritório; colisão retorna 409.</p>
+<p>PUT de associações recebe <code>{"tag_ids":["ID_DA_TAG"]}</code>. Até 50 IDs únicos. Lista vazia remove logicamente todas as associações. Voz e tags precisam estar ativas e no mesmo escritório; qualquer referência inválida desfaz toda a alteração. As associações anteriores são inativadas e as selecionadas criadas/reativadas. Inativar uma tag a oculta das associações consultadas; reativá-la pode voltar a exibir associações ainda ativas.</p>
+<h2>Vínculos com projetos da SiPlug</h2>
+<table>
+<thead>
+<tr>
+<th>Método e rota /api/v1</th>
+<th>Permissão</th>
+<th>Comportamento</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>POST /projects/{project_id}/audio-links</td>
+<td>project_audio.update</td>
+<td>Vincula resultado de áudio próprio, 201</td>
+</tr>
+<tr>
+<td>GET /projects/{project_id}/audio-links</td>
+<td>project_audio.read</td>
+<td>Lista vínculos ativos próprios do projeto</td>
+</tr>
+<tr>
+<td>DELETE /project-audio-links/{link_id}</td>
+<td>project_audio.update</td>
+<td>Inativa vínculo próprio, 200; repetir é permitido</td>
+</tr>
+</tbody>
+</table>
+<p>POST recebe <code>{"output_id":"ID_DO_RESULTADO"}</code>. Use o unique_id retornado por GET /jobs/{job_id}/outputs com purpose=audio, não um caminho nem um media_file_id arbitrário. O serviço resolve o arquivo e verifica job concluído, proprietário, conversa e arquivos ativos. O vínculo devolve media_file_id público, nunca storage_key.</p>
+<p>Repetir o mesmo par projeto/arquivo devolve o mesmo vínculo. Um vínculo inativo é reativado. A exclusão lógica não apaga o áudio nem o projeto. Projeto externo aceita identificador ASCII de 1–255 caracteres com letras, números, ponto, hífen, sublinhado e dois-pontos, iniciando por letra/número.</p>
+<p><strong>A SiPlug deve validar existência e permissão do projeto antes de chamar o Dubber.</strong> Este serviço não consulta nem replica o banco de projetos. A implementação é o lado Dubber do contrato; a integração na aplicação consumidora não foi alterada. Vínculos removidos externamente precisam ser inativados pela SiPlug. O download continua pela rota autenticada de resultados e revalida o acesso à conversa.</p>
+<h2>Edição e versionamento de transcrições</h2>
+<table>
+<thead>
+<tr>
+<th>Método e rota /api/v1</th>
+<th>Permissão</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET /jobs/{job_id}/transcriptions</td>
+<td>dubbing.read</td>
+</tr>
+<tr>
+<td>POST /jobs/{job_id}/transcriptions</td>
+<td>transcription.update</td>
+</tr>
+</tbody>
+</table>
+<p>GET retorna versões ativas, da mais recente para a mais antiga. Listagens paginadas de tags, projetos e transcrições aceitam limit 1–100 (padrão 20) e offset &gt;= 0.</p>
+<p>Para editar, obtenha o unique_id da versão atual e envie:</p>
+<pre><code class="language-json">{&quot;base_transcription_id&quot;:&quot;ID_DA_VERSAO_ATUAL&quot;,&quot;text&quot;:&quot;Texto corrigido para a próxima dublagem.&quot;}
+</code></pre>
+<p>O job deve estar completed e pertencer ao actor numa conversa ativa. Texto após trim: 1–10000 caracteres. O serviço cria outro <code>_id</code>, incrementa version, marca origin=edited, registra edited_by_user_id e previous_transcription_id. A transação bloqueia proprietário/job e lê a versão atual. Duas edições da mesma base não se sobrescrevem: uma conclui e a outra recebe 409; recarregue o histórico antes de tentar novamente.</p>
+<p>A transcrição reconhecida, os segmentos executados, a mensagem e o TXT/WAV publicados permanecem como registro da execução original. Editar não gera áudio automaticamente. Para nova síntese, envie o texto da versão escolhida em input_text de um novo job text_to_speech, com nova Idempotency-Key; esse texto passa a ser o snapshot da nova execução.</p>
+<h2>Entrada de MP3 e vídeo MP4</h2>
+<p>POST /chats/{chat_id}/audio agora aceita bytes binários com Content-Type audio/wav, audio/x-wav, audio/mpeg ou video/mp4. O envio permanece sem multipart e sem URLs. Limite: 20 MiB e faixa de áudio entre 3 e 180 segundos. Vídeo precisa conter áudio; utiliza a primeira faixa de áudio.</p>
+<pre><code class="language-sh">curl -X POST 'http://localhost:8087/api/v1/chats/ID_DO_CHAT/audio' \
+  -H &quot;Authorization: Bearer $DUBBER_TOKEN&quot; \
+  -H 'Content-Type: video/mp4' \
+  --data-binary @entrada.mp4
+</code></pre>
+<p>A API verifica permissão/propriedade antes da conversão e revalida antes de persistir. FFprobe tem timeout de 15 segundos e FFmpeg de 60; no máximo duas conversões simultâneas por processo da API. Com ambas ocupadas, retorna 409 para nova tentativa. O formato de entrada é forçado e protocolos são limitados a arquivos locais/pipe. Conteúdo inválido, vídeo sem áudio e mídia longa são rejeitados; a conversão não publica trechos truncados como se fossem o arquivo completo.</p>
+<p>MP3/MP4 viram WAV PCM16 mono/24 kHz privado. O arquivo original e a imagem do vídeo não são armazenados. O download da mensagem devolve o WAV normalizado. Depois, use o ID da mensagem para transcribe ou speech_to_speech, como no fluxo anterior. Amostras de cadastro de voz continuam usando WAV validado; não foi mudado esse contrato.</p>
+<p><strong>Este suporte é de entrada:</strong> a aplicação não remonta/exporta vídeo dublado nem oferece saída MP3. Os resultados de síntese continuam WAV, e transcrições continuam TXT. Não há tradução entre idiomas nesta etapa.</p>
+<h2>Limpeza automática de órfãos</h2>
+<p>O scheduler examina até 500 candidatos por ciclo, avançando um cursor entre ciclos de aproximadamente 10 segundos. Só remove arquivos privados de nomes reconhecidos (UUID WAV/TXT/temporário em pasta hash de escritório) e diretórios de tentativas job-* com mais de 24 horas. O índice ix_media_storage_key foi adicionado para a consulta global de inventário.</p>
+<p>Qualquer registro em media_files protege o arquivo, inclusive registros inactive ou não prontos. Links simbólicos, arquivos fora da raiz, nomes desconhecidos, modelos e dados do legado não são candidatos. Se o banco não responde, a limpeza interrompe sem decidir que o arquivo é órfão.</p>
+<p>O arquivo <code>.publication.lock</code> coordena processos por flock no volume Docker local: uploads de amostras, uploads do chat e processamento/publicação de resultados seguram bloqueio compartilhado. A limpeza precisa de bloqueio exclusivo não bloqueante; se existe publicação, adia o ciclo. O bloqueio abrange gravação e commit, evitando apagar um arquivo antes de seu registro no banco. Todos os escritores devem usar esse contrato; gravações manuais fora da aplicação não são coordenadas. O volume deve suportar flock; esta configuração foi desenhada para o volume local do Docker.</p>
+<p>Não há endpoint público de limpeza. Não use docker compose down -v como manutenção: ele remove os volumes persistentes. A reconciliação não exclui registros do banco nem aplica retenção a áudios registrados.</p>
+<h2>Aplicação e validação</h2>
+<pre><code class="language-sh">docker compose build app worker scheduler
+docker compose stop app worker scheduler
+docker compose run --rm --no-deps app python -m alembic upgrade head
+docker compose up -d --wait
+docker compose ps
+</code></pre>
+<p>Na primeira instalação, inicialize db e o cache dos modelos conforme WORKER_E_PROCESSAMENTO.md. Na atualização, mantenha .env, media_data, mysql_data e model_data. Parar escritores antes da primeira subida do novo scheduler garante que todos já usem o bloqueio de publicação.</p>
+<p>Testes somente no ambiente descartável:</p>
+<pre><code class="language-sh">docker compose -p siplug-dubber-completion-check -f docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from app
+docker compose -p siplug-dubber-completion-check -f docker-compose.test.yml down -v
+</code></pre>
+<p>completion_scenarios.py cobre catálogo, rollback de associações, versionamento concorrente, vínculos idempotentes e acesso entre escritórios/proprietários. test_media_completion.py usa FFmpeg real para MP3/MP4, rejeita mídia inválida e verifica limpeza, falha do banco e bloqueio entre processos. Os testes anteriores de autenticação, worker e resultados continuam na suíte. Não são criados usuários de teste no banco da aplicação.</p></main></body></html>diff --git a/docs/CATALOGO_PROJETOS_E_MIDIA.md b/docs/CATALOGO_PROJETOS_E_MIDIA.md

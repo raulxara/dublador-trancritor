@@ -1,0 +1,30 @@
+name: siplug-dubber-tests
+services:
+  app:
+    build:
+      context: .
+      dockerfile: .docker/python/Dockerfile.DEV
+    environment:
+      DUBBER_DB_HOST: db
+      DUBBER_DB_DATABASE: auth_test
+      DUBBER_DB_USERNAME: auth_test
+      DUBBER_DB_PASSWORD: isolated-test-only
+      DUBBER_INTEGRATION: '1'
+    command: [sh, -c, 'python -m alembic upgrade head && python -m pytest -q -p no:cacheprovider']
+    depends_on:
+      db:
+        condition: service_healthy
+  db:
+    image: mysql:8.4
+    tmpfs:
+      - /var/lib/mysql
+    environment:
+      MYSQL_DATABASE: auth_test
+      MYSQL_USER: auth_test
+      MYSQL_PASSWORD: isolated-test-only
+      MYSQL_ROOT_PASSWORD: isolated-root-only
+    healthcheck:
+      test: [CMD-SHELL, 'MYSQL_PWD=$$MYSQL_PASSWORD mysql -u$$MYSQL_USER -D$$MYSQL_DATABASE -e "SELECT 1" >/dev/null']
+      interval: 3s
+      timeout: 3s
+      retries: 40
