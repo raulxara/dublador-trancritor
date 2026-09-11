@@ -1,0 +1,9 @@
+from typing import Protocol
+
+from app.entities.dubbing_chat.dubbing_chat_entity import DubbingChatEntity
+
+
+class IChatRepository(Protocol):
+    def find(self, office_id: str, unique_id: str, lock: bool = False) -> DubbingChatEntity | None: ...
+    def list(self, office_id: str, owner_id: str, limit: int, offset: int) -> list[DubbingChatEntity]: ...
+    def save(self, entity: DubbingChatEntity, create: bool) -> None: ...

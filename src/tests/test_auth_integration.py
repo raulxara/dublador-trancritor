@@ -107,12 +107,26 @@ def test_mysql_authentication_lifecycle_and_scope():
                     text("UPDATE user_customers SET profile_id='foreign-profile' WHERE office_id=:office"),
                     {"office": result.office_id},
                 )
+
+            from tests.voice_scenarios import check_voice_endpoints
+
+            check_voice_endpoints(client, headers, container, result.office_id)
+            from tests.chat_scenarios import check_chat_endpoints
+
+            check_chat_endpoints(client, headers, container, result.office_id)
+            from tests.processing_scenarios import check_processing
+            check_processing(client, headers, container, result.office_id)
             # A permission belonging to another office must never grant access even if linked.
             with container.engine.begin() as connection:
-                connection.execute(text("UPDATE permissions SET office_id='foreign-office'"))
+                connection.execute(
+                    text("UPDATE permissions SET office_id='foreign-office' WHERE entity IN ('catalog','user')")
+                )
             assert client.get(path, headers=headers).status_code == 403
             with container.engine.begin() as connection:
-                connection.execute(text("UPDATE permissions SET office_id=:office"), {"office": result.office_id})
+                connection.execute(
+                    text("UPDATE permissions SET office_id=:office WHERE entity IN ('catalog','user')"),
+                    {"office": result.office_id},
+                )
             response = client.post(f"/api/v1/users/{result.user_id}/access-token", headers=headers)
             assert response.status_code == 201
             new_token = response.json()["data"]["token"]

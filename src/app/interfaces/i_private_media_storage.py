@@ -1,0 +1,6 @@
+from typing import Protocol
+
+
+class IPrivateMediaStorage(Protocol):
+    def save(self, office_id: str, file_id: str, content: bytes) -> str: ...
+    def path(self, key: str) -> str: ...

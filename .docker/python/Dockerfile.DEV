@@ -4,6 +4,7 @@ WORKDIR /var/www/html
 COPY src/requirements.lock /tmp/dependencies/requirements.lock
 RUN python -m pip install -r /tmp/dependencies/requirements.lock     && groupadd --gid 10001 dubber     && useradd --uid 10001 --gid dubber --create-home dubber
 COPY --chown=dubber:dubber src/ /var/www/html/
+RUN mkdir -p /var/lib/dubber/media && chown dubber:dubber /var/lib/dubber/media
 USER dubber
 EXPOSE 8000
 CMD ["python", "-m", "uvicorn", "app.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]

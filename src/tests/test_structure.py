@@ -47,7 +47,7 @@ def test_liveness_and_readiness_are_distinct(monkeypatch, database_available, ex
         assert response.status_code == expected
         assert probe.calls == 1
         assert "test-secret" not in response.text
-        assert client.get("/api/v1/voices").status_code == 404
+        assert client.get("/api/v1/voices").status_code == 401
         assert client.get("/docs").status_code == 404
     assert closed == [True]
     assert not any(name in sys.modules for name in ("torch", "tkinter", "TTS"))

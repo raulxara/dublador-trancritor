@@ -12,6 +12,8 @@ class VoiceEntity:
     current_sample_id: str | None = None
     status: Literal["active", "inactive"] = "active"
 
+    description: str | None = None
+
     def __post_init__(self) -> None:
         if any(
             not isinstance(v, str) or not v.strip()

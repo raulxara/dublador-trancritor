@@ -1,5 +1,11 @@
 # SiPlug Dubber — Arquitetura, tecnologias e Docker
 
+> Etapa de processamento: revisão 0004_processing_results implementa resultados, transcrições e segmentos (23 tabelas de domínio). Worker CPU com XTTS/Whisper, scheduler de leases, cancelamento em execução e download privado disponíveis. Consulte WORKER_E_PROCESSAMENTO.md para o estado atual e comandos; os registros de etapas anteriores abaixo são históricos.
+
+> Atualização 10/09/2026: revisão 0003_chat_jobs acrescenta quatro tabelas de chat/mensagens/jobs (20 tabelas de domínio implementadas). Entrada de texto/áudio, propriedade, idempotência e cancelamento disponíveis. Jobs permanecem queued até a integração do worker. Consulte CHAT_E_JOBS.md; o restante deste documento contém especificações futuras e registros das etapas anteriores.
+
+> Etapa de vozes implementada em 10/09/2026: revisão 0002_voices acrescenta languages, gender, voices, media_files e voice_samples, totalizando 16 tabelas de domínio. Cadastro de vozes e upload/download privado de WAV disponíveis; tags/chat/motores permanecem como alvo. Consulte VOZES_E_AMOSTRAS.md para limites e comandos atuais.
+
 > Atualização 10/09/2026: 11 tabelas de identidade e autenticação Bearer/RBAC implementadas na revisão 0001_identity. Token persistido como SHA-256 com token_expires_at; permissions.scope_key garante unicidade global. O restante do modelo é alvo futuro. Consulte AUTENTICACAO.md para o estado atual, comandos e limitações; descrições históricas abaixo não substituem essa atualização.
 
 > Limpeza em 10/09/2026: ambiente .venv, interface desktop, builds e empacotamento removidos. Referências históricas a app/ correspondem ao código anterior; motores preservados em legacy/audio_reference/ e dados mantidos em data/.

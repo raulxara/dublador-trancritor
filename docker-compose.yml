@@ -19,6 +19,7 @@ services:
       DUBBER_DB_PASSWORD: ${DUBBER_DB_PASSWORD:?Configure DUBBER_DB_PASSWORD no .env}
     volumes:
       - ./src:/var/www/html
+      - media_data:/var/lib/dubber/media
     depends_on:
       db:
         condition: service_healthy
@@ -32,6 +33,62 @@ services:
       local:
       rede_internal:
         aliases: [siplug-dubber-api]
+
+  worker:
+    build:
+      context: .
+      dockerfile: ./.docker/python/Dockerfile.WORKER.DEV
+    working_dir: /var/www/html
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 15s
+    environment:
+      DUBBER_DB_HOST: db
+      DUBBER_DB_DATABASE: siplug_dubber
+      DUBBER_DB_USERNAME: siplug_dubber
+      DUBBER_DB_PASSWORD: ${DUBBER_DB_PASSWORD:?Configure DUBBER_DB_PASSWORD no .env}
+      DUBBER_WORKER_TIMEOUT_SECONDS: ${DUBBER_WORKER_TIMEOUT_SECONDS:-1200}
+    volumes:
+      - ./src:/var/www/html:ro
+      - media_data:/var/lib/dubber/media
+      - model_data:/var/cache/dubber/models:ro
+    depends_on:
+      db:
+        condition: service_healthy
+      app:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, python, -m, app.workers.health, worker]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 180s
+    networks: [local]
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: ./.docker/python/Dockerfile.DEV
+    working_dir: /var/www/html
+    command: [python, -m, app.scheduler.main]
+    init: true
+    restart: unless-stopped
+    environment:
+      DUBBER_DB_HOST: db
+      DUBBER_DB_DATABASE: siplug_dubber
+      DUBBER_DB_USERNAME: siplug_dubber
+      DUBBER_DB_PASSWORD: ${DUBBER_DB_PASSWORD:?Configure DUBBER_DB_PASSWORD no .env}
+    volumes:
+      - ./src:/var/www/html:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, python, -m, app.workers.health, scheduler]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [local]
 
   db:
     image: mysql:8.4
@@ -56,6 +113,8 @@ services:
 
 volumes:
   mysql_data:
+  media_data:
+  model_data:
 
 networks:
   local:

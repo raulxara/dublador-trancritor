@@ -11,3 +11,4 @@ class Settings(BaseSettings):
     db_database: str = "siplug_dubber"
     db_username: str = "siplug_dubber"
     db_password: SecretStr = Field(min_length=1)
+    media_root: str = "/var/lib/dubber/media"

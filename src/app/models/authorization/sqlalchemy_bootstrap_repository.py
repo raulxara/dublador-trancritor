@@ -53,7 +53,20 @@ class SqlAlchemyBootstrapRepository:
                         ),
                     ]:
                         connection.execute(text(statement), values)
-                    for entity, action in [("catalog", "read"), ("user", "update")]:
+                    for entity, action in [
+                        ("catalog", "read"),
+                        ("user", "update"),
+                        ("voice", "read"),
+                        ("voice", "register"),
+                        ("voice", "update"),
+                        ("dubbing_chat", "create"),
+                        ("dubbing_chat", "read"),
+                        ("dubbing_chat", "update"),
+                        ("dubbing", "generate"),
+                        ("dubbing", "read"),
+                        ("dubbing", "cancel"),
+                        ("dubbing", "download"),
+                    ]:
                         permission = str(uuid4())
                         connection.execute(
                             text(

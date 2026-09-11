@@ -24,4 +24,5 @@ class FindVoiceByUniqueIdService:
             gender_id=voice.gender_id,
             current_sample_id=voice.current_sample_id,
             status=voice.status,
+            description=voice.description,
         )

@@ -1,3 +1,3 @@
-# Repositório de Voice
+# Serviços de voz
 
-Implementação MySQL pendente das migrations; o contrato IVoicesRepository já define busca por office_id e _id.
+Validação técnica de WAV, armazenamento privado e coordenação de amostras implementados. Os motores legados ainda serão integrados nos workers.

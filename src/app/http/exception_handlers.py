@@ -5,6 +5,8 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.exceptions.authentication_error import AuthenticationError
 from app.exceptions.authorization_error import AuthorizationError
+from app.exceptions.conflict_error import ConflictError
+from app.exceptions.invalid_input_error import InvalidInputError
 from app.exceptions.resource_not_found_error import ResourceNotFoundError
 
 
@@ -24,6 +26,8 @@ def register_exception_handlers(application: FastAPI) -> None:
         (AuthenticationError, 401, "DUBBER_AUTHENTICATION_ERROR"),
         (AuthorizationError, 403, "DUBBER_AUTHORIZATION_ERROR"),
         (ResourceNotFoundError, 404, "DUBBER_RESOURCE_NOT_FOUND"),
+        (ConflictError, 409, "DUBBER_CONFLICT"),
+        (InvalidInputError, 422, "DUBBER_INVALID_INPUT"),
         (RequestValidationError, 422, "DUBBER_INVALID_INPUT"),
     ]:
         application.add_exception_handler(error, handler(status, code))

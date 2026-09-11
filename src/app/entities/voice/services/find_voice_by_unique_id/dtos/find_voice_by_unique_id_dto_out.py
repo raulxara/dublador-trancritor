@@ -10,3 +10,4 @@ class FindVoiceByUniqueIdDtoOut:
     gender_id: str | None
     current_sample_id: str | None
     status: str
+    description: str | None = None

@@ -7,7 +7,7 @@ Aplicação que dubla textos e transcreve áudios e vídeos a partir de uma voz 
 - [Arquitetura, tecnologias e Docker — Python no padrão SiPlug](docs/DOC_ARQUITETURA_SIPLUG_DUBBER.html)
 - [Arquitetura em Markdown](docs/DOC_ARQUITETURA_SIPLUG_DUBBER.md)
 
-Os documentos descrevem a arquitetura alvo. A estrutura inicial Python e o Docker de API/MySQL já foram implementados; as migrations de identidade e autenticação persistida foram acrescentadas; áudio, chat e workers são as próximas etapas.
+A API implementa autenticação, vozes, chat e processamento assíncrono. Consulte [Worker e processamento](docs/WORKER_E_PROCESSAMENTO.md) para instalação dos modelos, migrations, resultados e limites. O banco está na revisão 0004_processing_results, com 23 tabelas de domínio.
 
 ## Executar a nova API com Docker
 
@@ -27,9 +27,14 @@ A rede compartilhada `rede_internal` deve existir; crie com `docker network crea
 somente se ainda não existir.
 
 ```sh
-docker compose up -d --build --wait
+docker compose build app worker scheduler
+docker compose up -d --wait db
+docker compose run --rm --no-deps app python -m alembic upgrade head
+docker compose up -d --wait app
 docker compose ps
 ```
+
+Antes de iniciar worker/scheduler pela primeira vez, importe os modelos conforme [WORKER_E_PROCESSAMENTO.md](docs/WORKER_E_PROCESSAMENTO.md). Depois execute `docker compose up -d --wait worker scheduler`.
 
 | Serviço | Acesso |
 | --- | --- |
@@ -74,14 +79,13 @@ resolva e atualize o lock dentro de Docker antes de reconstruir a imagem.
 - `src/app/services/database`: adaptador SQLAlchemy de conectividade; consulta isolada da aplicação.
 - `src/app/providers`: composição e ciclo de vida do pool de banco.
 - `src/app/config`: configuração centralizada; senha com representação protegida.
-- `src/app/interfaces`: contratos, incluindo Unit of Work para a próxima etapa.
+- `src/app/interfaces`: contratos, incluindo Unit of Work e contratos de execução.
 - `src/tests`: validação de camadas, escopo, health/readiness e guard de permissões.
 - `.docker/python/Dockerfile.DEV`: imagem Python da API.
-- `docker-compose.yml`: app, db, redes e persistência por volume nomeado, como no Commerce.
+- `docker-compose.yml`: app, db, worker, scheduler, redes e persistência por volume nomeado, como no Commerce.
 
 A dependência `RequirePermission` exige actor criado no servidor pela autenticação Bearer do router protegido. Tokens e permissões são consultados nos repositórios a cada requisição.
-Não há repositório fake registrado na API. O serviço de Voice só será exposto quando a
-persistência e a autorização estiverem disponíveis.
+Não há repositório fake registrado na API. Vozes, amostras, conversas e resultados usam persistência e autorização por escritório/proprietário.
 
 ## Limpeza do legado
 
@@ -94,8 +98,20 @@ consulta durante a migração; não são importados pela API nem incluídos na i
 Vozes, amostras e projetos em `data/` foram preservados, sem alteração ou importação automática.
 Veja [referência do legado](legacy/README.md).
 
-Próximas etapas: vozes/amostras e respectivas migrations; chat/jobs; worker e scheduler com os motores atuais.
+Pendências: reconciliação de arquivos órfãos, tags e vínculos com projetos da SiPlug.
 
 ## Autenticação persistida
 
 As 11 tabelas de identidade estão na revisão `0001_identity`. Consulte [autenticação, bootstrap e testes](docs/AUTENTICACAO.md) para provisionar o primeiro acesso e usar as rotas protegidas. Nenhum usuário real é criado automaticamente.
+
+## Vozes e amostras
+
+A revisão `0002_voices` implementa as cinco tabelas de vozes/amostras e os respectivos endpoints protegidos, com arquivos no volume privado `media_data`. Consulte [rotas, envio de WAV e operação](docs/VOZES_E_AMOSTRAS.md).
+
+## Chat, mensagens e jobs
+
+A revisão `0003_chat_jobs` implementa conversas próprias, entrada de texto/áudio e jobs duráveis com idempotência. Os jobs entram em queued e são consumidos pelo worker implementado na revisão 0004_processing_results. Veja [rotas e responsabilidades](docs/CHAT_E_JOBS.md).
+
+## Processamento e resultados
+
+A revisão `0004_processing_results` implementa worker XTTS/Whisper em CPU, recuperação de leases, cancelamento em execução, transcrições e resultados privados. Consulte [responsabilidades, instalação do cache e comandos](docs/WORKER_E_PROCESSAMENTO.md).
