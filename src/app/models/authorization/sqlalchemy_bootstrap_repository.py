@@ -66,6 +66,11 @@ class SqlAlchemyBootstrapRepository:
                         ("dubbing", "read"),
                         ("dubbing", "cancel"),
                         ("dubbing", "download"),
+                        ("tag", "read"),
+                        ("tag", "update"),
+                        ("project_audio", "read"),
+                        ("project_audio", "update"),
+                        ("transcription", "update"),
                     ]:
                         permission = str(uuid4())
                         connection.execute(

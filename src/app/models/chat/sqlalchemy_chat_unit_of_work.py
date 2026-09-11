@@ -1,5 +1,8 @@
 from sqlalchemy import Engine
 
+from app.models.catalog.sqlalchemy_project_audio_links_repository import SqlAlchemyProjectAudioLinksRepository
+from app.models.catalog.sqlalchemy_tags_repository import SqlAlchemyTagsRepository
+from app.models.catalog.sqlalchemy_transcriptions_repository import SqlAlchemyTranscriptionsRepository
 from app.models.chat.sqlalchemy_chat_repository import SqlAlchemyChatRepository
 from app.models.chat.sqlalchemy_chat_source_repository import SqlAlchemyChatSourceRepository
 from app.models.chat.sqlalchemy_job_repository import SqlAlchemyJobRepository
@@ -15,6 +18,9 @@ class SqlAlchemyChatUnitOfWork:
         self.connection = self.engine.connect()
         self.transaction = self.connection.begin()
         self.outputs = SqlAlchemyJobOutputsRepository(self.connection)
+        self.tags = SqlAlchemyTagsRepository(self.connection)
+        self.project_links = SqlAlchemyProjectAudioLinksRepository(self.connection)
+        self.transcriptions = SqlAlchemyTranscriptionsRepository(self.connection)
         self.chats = SqlAlchemyChatRepository(self.connection)
         self.messages = SqlAlchemyMessageRepository(self.connection)
         self.jobs = SqlAlchemyJobRepository(self.connection)

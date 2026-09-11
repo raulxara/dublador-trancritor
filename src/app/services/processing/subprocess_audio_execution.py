@@ -12,6 +12,7 @@ from app.entities.dubbing_job.execution_result_entity import ExecutionResultEnti
 from app.entities.dubbing_job.segment_entity import SegmentEntity
 from app.exceptions.execution_timeout_error import ExecutionTimeoutError
 from app.exceptions.lease_lost_error import LeaseLostError
+from app.services.media.media_publication_guard import MediaPublicationGuard
 from app.services.processing.private_result_storage import PrivateResultStorage
 from app.services.voice.private_media_storage import PrivateMediaStorage
 
@@ -106,3 +107,6 @@ class SubprocessAudioExecution:
             return ExecutionResultEntity(
                 files, result["text"], result["language"], segments, result["engine"], result["model_version"]
             )
+
+    def publication(self):
+        return MediaPublicationGuard(self.root).hold()

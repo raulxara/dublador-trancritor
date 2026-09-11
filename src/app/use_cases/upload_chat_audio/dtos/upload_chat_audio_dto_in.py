@@ -13,3 +13,5 @@ class UploadChatAudioDtoIn:
     def __post_init__(self):
         if not self.chat_id or len(self.chat_id) > 255:
             raise InvalidInputError()
+
+    content_type: str = "audio/wav"

@@ -29,30 +29,31 @@ class ProcessNextJobUseCaseService:
         self.resolve, self.complete, self.audio = resolve, complete, audio
 
     def exec(self, dto: ProcessNextJobDtoIn) -> ProcessNextJobDtoOut:
-        lease = self.claim.exec(ClaimJobDtoIn(dto.lease_seconds, dto.max_attempts)).data
-        if lease is None:
-            return ProcessNextJobDtoOut("idle")
-        context = self.resolve.exec(ResolveExecutionDtoIn(lease)).data
-        if context is None:
-            self.fail.exec(FailJobDtoIn(lease, "INPUT_UNAVAILABLE"))
-            return ProcessNextJobDtoOut("unavailable")
+        with self.audio.publication():
+            lease = self.claim.exec(ClaimJobDtoIn(dto.lease_seconds, dto.max_attempts)).data
+            if lease is None:
+                return ProcessNextJobDtoOut("idle")
+            context = self.resolve.exec(ResolveExecutionDtoIn(lease)).data
+            if context is None:
+                self.fail.exec(FailJobDtoIn(lease, "INPUT_UNAVAILABLE"))
+                return ProcessNextJobDtoOut("unavailable")
 
-        def renew():
-            return self.renew.exec(RenewJobDtoIn(lease, dto.lease_seconds)).data
+            def renew():
+                return self.renew.exec(RenewJobDtoIn(lease, dto.lease_seconds)).data
 
-        try:
-            result = self.audio.run(context, renew)
-        except LeaseLostError:
-            return ProcessNextJobDtoOut("lease_lost")
-        except ExecutionTimeoutError:
-            self.fail.exec(FailJobDtoIn(lease, "EXECUTION_TIMEOUT"))
-            return ProcessNextJobDtoOut("failed")
-        except Exception:
-            self.fail.exec(FailJobDtoIn(lease, "ENGINE_FAILED"))
-            return ProcessNextJobDtoOut("failed")
-        if not renew():
-            return ProcessNextJobDtoOut("lease_lost")
-        completed = self.complete.exec(CompleteExecutionDtoIn(lease, result)).data
-        if not completed:
-            self.fail.exec(FailJobDtoIn(lease, "INPUT_UNAVAILABLE"))
-        return ProcessNextJobDtoOut("completed" if completed else "unavailable")
+            try:
+                result = self.audio.run(context, renew)
+            except LeaseLostError:
+                return ProcessNextJobDtoOut("lease_lost")
+            except ExecutionTimeoutError:
+                self.fail.exec(FailJobDtoIn(lease, "EXECUTION_TIMEOUT"))
+                return ProcessNextJobDtoOut("failed")
+            except Exception:
+                self.fail.exec(FailJobDtoIn(lease, "ENGINE_FAILED"))
+                return ProcessNextJobDtoOut("failed")
+            if not renew():
+                return ProcessNextJobDtoOut("lease_lost")
+            completed = self.complete.exec(CompleteExecutionDtoIn(lease, result)).data
+            if not completed:
+                self.fail.exec(FailJobDtoIn(lease, "INPUT_UNAVAILABLE"))
+            return ProcessNextJobDtoOut("completed" if completed else "unavailable")

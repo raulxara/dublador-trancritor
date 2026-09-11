@@ -5,6 +5,7 @@ from app.http.controllers.health_controller import get_health, get_readiness
 from app.http.controllers.voice_controller import create_voice, gender, get_voice, languages, list_voices, update_voice
 from app.http.controllers.voice_sample_controller import download_sample, list_samples, register_sample
 from app.http.dependencies.resolve_actor import resolve_actor
+from app.routes.catalog import router as catalog_router
 from app.routes.chat import router as chat_router
 
 router = APIRouter()
@@ -26,4 +27,5 @@ protected.add_api_route("/voices/{voice_id}/samples", register_sample, methods=[
 protected.add_api_route("/voices/{voice_id}/samples", list_samples, methods=["GET"])
 protected.add_api_route("/voices/{voice_id}/samples/{sample_id}/audio", download_sample, methods=["GET"])
 protected.include_router(chat_router)
+protected.include_router(catalog_router)
 router.include_router(protected)

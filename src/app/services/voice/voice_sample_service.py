@@ -18,11 +18,12 @@ class VoiceSampleService:
 
     def register(self, office_id, voice_id, user_id, content):
         self.require_voice(office_id, voice_id)
-        metadata = ValidateWavService().exec(content)
-        metadata.update(file=str(uuid4()), sample=str(uuid4()))
-        metadata["key"] = self.storage.save(office_id, metadata["file"], content)
-        # Preserve a private orphan on an ambiguous DB commit rather than delete a possibly committed file.
-        return self.samples.register(office_id, voice_id, user_id, metadata)
+        with self.storage.publication():
+            metadata = ValidateWavService().exec(content)
+            metadata.update(file=str(uuid4()), sample=str(uuid4()))
+            metadata["key"] = self.storage.save(office_id, metadata["file"], content)
+            # Preserve a private orphan on an ambiguous DB commit rather than delete a possibly committed file.
+            return self.samples.register(office_id, voice_id, user_id, metadata)
 
     def list(self, office_id, voice_id, limit, offset):
         self.require_voice(office_id, voice_id)

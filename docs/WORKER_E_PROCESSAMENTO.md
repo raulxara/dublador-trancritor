@@ -1,8 +1,10 @@
 # Worker e processamento — SiPlug Dubber
 
+> Atualização 11/09/2026: revisão 0005_catalog_and_projects completa as 26 tabelas de domínio. Tags, vínculos externos de projetos, edição versionada de transcrições, entrada MP3/MP4 e limpeza protegida de órfãos implementados. Consulte CATALOGO_PROJETOS_E_MIDIA.md para contratos e limites atuais; registros anteriores abaixo são históricos.
+
 ## Estado implementado
 
-A revisão `0004_processing_results` acrescenta `dubbing_job_outputs`, `transcriptions` e `dubbing_segments`: **23 tabelas de domínio**, além de `alembic_version`. Todas as referências internas continuam sendo VARCHAR(255) para `_id`; relações privadas incluem office_id. `status` continua active/inactive; o andamento usa processing_state. Tags, voice_tags e project_audio_links continuam futuros.
+A revisão `0004_processing_results` acrescenta `dubbing_job_outputs`, `transcriptions` e `dubbing_segments`: **23 tabelas de domínio**, além de `alembic_version`. Todas as referências internas continuam sendo VARCHAR(255) para `_id`; relações privadas incluem office_id. `status` continua active/inactive; o andamento usa processing_state. Tags, voice_tags e project_audio_links foram implementados na revisão 0005_catalog_and_projects.
 
 O Compose possui API, MySQL, worker e scheduler. A API recebe a solicitação e responde 202. O worker executa os modelos reais em CPU, usando somente arquivos locais. O scheduler recupera tentativas abandonadas. Nenhum processamento de modelo ocorre no processo HTTP ou dentro de uma transação do banco.
 
@@ -109,9 +111,9 @@ O preflight carrega ambos os motores antes de começar a consumir a fila. Falha 
 
 WAV de saída: mono PCM16/24 kHz. TXT: UTF-8. Ajustes de velocidade e pitch usam FFmpeg. preserve_timing sintetiza cada segmento reconhecido, ajusta sua duração e alinha ao áudio de origem, com silêncio entre trechos; não é garantia de sincronização labial. O idioma selecionado em speech_to_speech orienta o reconhecimento/síntese; não há tradução entre idiomas. Whisper tiny prioriza custo local; qualidade precisa ser avaliada em amostras reais.
 
-Cada tentativa tem diretório privado temporário. Encerramento normal, erro ou cancelamento limpa esse diretório. SIGKILL do contêiner pode deixar diretórios temporários; falha após salvar arquivo e antes de publicar pode deixar arquivo órfão privado. **O scheduler desta etapa recupera jobs, mas não apaga arquivos órfãos.** A reconciliação de armazenamento permanece pendente; nunca remover media_data ou model_data como rotina de limpeza.
+Cada tentativa tem diretório privado temporário. Encerramento normal, erro ou cancelamento limpa esse diretório. SIGKILL do contêiner pode deixar diretórios temporários; falha após salvar arquivo e antes de publicar pode deixar arquivo órfão privado. O scheduler também remove órfãos antigos sob bloqueio de publicação, conforme CATALOGO_PROJETOS_E_MIDIA.md; nunca remover media_data ou model_data como rotina de limpeza.
 
-A aplicação não oferece edição de transcrição, MP3/vídeo, tradução, UI, catálogo de tags nem integração com projetos nesta etapa.
+Edição de transcrições, entrada MP3/MP4, tags e vínculos externos de projetos foram acrescentados pela revisão 0005. Tradução, UI e remontagem/exportação de vídeo não fazem parte deste serviço implementado.
 
 ## Validação
 

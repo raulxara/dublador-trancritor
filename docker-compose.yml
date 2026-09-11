@@ -80,6 +80,7 @@ services:
       DUBBER_DB_PASSWORD: ${DUBBER_DB_PASSWORD:?Configure DUBBER_DB_PASSWORD no .env}
     volumes:
       - ./src:/var/www/html:ro
+      - media_data:/var/lib/dubber/media
     depends_on:
       db:
         condition: service_healthy

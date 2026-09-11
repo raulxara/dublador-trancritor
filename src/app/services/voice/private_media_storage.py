@@ -4,6 +4,7 @@ from pathlib import Path
 from uuid import UUID, uuid4
 
 from app.exceptions.resource_not_found_error import ResourceNotFoundError
+from app.services.media.media_publication_guard import MediaPublicationGuard
 
 
 class PrivateMediaStorage:
@@ -29,3 +30,6 @@ class PrivateMediaStorage:
         finally:
             temporary.unlink(missing_ok=True)
         return key
+
+    def publication(self):
+        return MediaPublicationGuard(self.root).hold()

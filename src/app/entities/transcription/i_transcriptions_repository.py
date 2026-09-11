@@ -1,0 +1,9 @@
+from typing import Protocol
+
+from app.entities.transcription.transcription_entity import TranscriptionEntity
+
+
+class ITranscriptionsRepository(Protocol):
+    def list(self, office_id: str, job_id: str, limit: int, offset: int) -> list[TranscriptionEntity]: ...
+    def latest(self, office_id: str, job_id: str) -> TranscriptionEntity | None: ...
+    def create(self, entity: TranscriptionEntity) -> None: ...

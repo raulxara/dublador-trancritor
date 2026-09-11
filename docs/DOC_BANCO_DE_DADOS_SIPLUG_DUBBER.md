@@ -1,5 +1,7 @@
 # SiPlug Dubber — Documentação do banco de dados
 
+> Atualização 11/09/2026: revisão 0005_catalog_and_projects completa as 26 tabelas de domínio. Tags, vínculos externos de projetos, edição versionada de transcrições, entrada MP3/MP4 e limpeza protegida de órfãos implementados. Consulte CATALOGO_PROJETOS_E_MIDIA.md para contratos e limites atuais; registros anteriores abaixo são históricos.
+
 > Etapa de processamento: revisão 0004_processing_results implementa resultados, transcrições e segmentos (23 tabelas de domínio). Worker CPU com XTTS/Whisper, scheduler de leases, cancelamento em execução e download privado disponíveis. Consulte WORKER_E_PROCESSAMENTO.md para o estado atual e comandos; os registros de etapas anteriores abaixo são históricos.
 
 > Atualização 10/09/2026: revisão 0003_chat_jobs acrescenta quatro tabelas de chat/mensagens/jobs (20 tabelas de domínio implementadas). Entrada de texto/áudio, propriedade, idempotência e cancelamento disponíveis. Jobs permanecem queued até a integração do worker. Consulte CHAT_E_JOBS.md; o restante deste documento contém especificações futuras e registros das etapas anteriores.

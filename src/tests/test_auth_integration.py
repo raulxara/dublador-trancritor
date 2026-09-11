@@ -115,7 +115,11 @@ def test_mysql_authentication_lifecycle_and_scope():
 
             check_chat_endpoints(client, headers, container, result.office_id)
             from tests.processing_scenarios import check_processing
+
             check_processing(client, headers, container, result.office_id)
+            from tests.completion_scenarios import check_completion
+
+            check_completion(client, headers, container, result.office_id)
             # A permission belonging to another office must never grant access even if linked.
             with container.engine.begin() as connection:
                 connection.execute(

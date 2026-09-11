@@ -7,7 +7,7 @@ Aplicação que dubla textos e transcreve áudios e vídeos a partir de uma voz 
 - [Arquitetura, tecnologias e Docker — Python no padrão SiPlug](docs/DOC_ARQUITETURA_SIPLUG_DUBBER.html)
 - [Arquitetura em Markdown](docs/DOC_ARQUITETURA_SIPLUG_DUBBER.md)
 
-A API implementa autenticação, vozes, chat e processamento assíncrono. Consulte [Worker e processamento](docs/WORKER_E_PROCESSAMENTO.md) para instalação dos modelos, migrations, resultados e limites. O banco está na revisão 0004_processing_results, com 23 tabelas de domínio.
+A API implementa autenticação, vozes, chat e processamento assíncrono. Consulte [Worker e processamento](docs/WORKER_E_PROCESSAMENTO.md) para instalação dos modelos, migrations, resultados e limites. O banco está na revisão 0005_catalog_and_projects, com 26 tabelas de domínio.
 
 ## Executar a nova API com Docker
 
@@ -98,7 +98,7 @@ consulta durante a migração; não são importados pela API nem incluídos na i
 Vozes, amostras e projetos em `data/` foram preservados, sem alteração ou importação automática.
 Veja [referência do legado](legacy/README.md).
 
-Pendências: reconciliação de arquivos órfãos, tags e vínculos com projetos da SiPlug.
+Tags, vínculos externos com projetos, versões de transcrições, entrada MP3/MP4 e reconciliação de órfãos estão implementados. Consulte [o guia completo](docs/CATALOGO_PROJETOS_E_MIDIA.md).
 
 ## Autenticação persistida
 
@@ -115,3 +115,7 @@ A revisão `0003_chat_jobs` implementa conversas próprias, entrada de texto/áu
 ## Processamento e resultados
 
 A revisão `0004_processing_results` implementa worker XTTS/Whisper em CPU, recuperação de leases, cancelamento em execução, transcrições e resultados privados. Consulte [responsabilidades, instalação do cache e comandos](docs/WORKER_E_PROCESSAMENTO.md).
+
+## Catálogo, projetos e mídia
+
+[Guia de rotas, arquitetura e limites](docs/CATALOGO_PROJETOS_E_MIDIA.html). A revisão 0005 completa as 26 tabelas do modelo. MP3/MP4 são entradas convertidas em WAV; o backend da SiPlug continua responsável por autorizar o projeto externo.

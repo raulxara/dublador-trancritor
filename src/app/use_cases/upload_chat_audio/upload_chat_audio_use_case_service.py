@@ -30,18 +30,19 @@ class UploadChatAudioUseCaseService:
             RequireOwnedChatService(uow.chats).exec(
                 RequireOwnedChatDtoIn(dto.actor.office_id, dto.actor.user_customer_id, dto.chat_id)
             ).data
-        metadata = PrepareChatAudioService(self.storage).exec(dto.actor.office_id, dto.content)
-        with self.uow_factory() as uow:
-            LockChatOwnerService(uow.jobs).exec(dto.actor.office_id, dto.actor.user_customer_id)
-            RequireOwnedChatService(uow.chats).exec(
-                RequireOwnedChatDtoIn(dto.actor.office_id, dto.actor.user_customer_id, dto.chat_id)
-            ).data
-            message = DubbingMessageEntity(
-                str(uuid4()), dto.actor.office_id, dto.chat_id, dto.actor.user_customer_id, "user", "audio", None
-            )
-            CreateMessageService(uow.messages).exec(CreateMessageDtoIn(message))
-            RegisterChatInputService(uow.sources).exec(
-                dto.actor.office_id, dto.actor.user_id, message.unique_id, metadata
-            )
-            uow.commit()
-            return UploadChatAudioDtoOut(asdict(message))
+        with self.storage.publication():
+            metadata = PrepareChatAudioService(self.storage).exec(dto.actor.office_id, dto.content, dto.content_type)
+            with self.uow_factory() as uow:
+                LockChatOwnerService(uow.jobs).exec(dto.actor.office_id, dto.actor.user_customer_id)
+                RequireOwnedChatService(uow.chats).exec(
+                    RequireOwnedChatDtoIn(dto.actor.office_id, dto.actor.user_customer_id, dto.chat_id)
+                ).data
+                message = DubbingMessageEntity(
+                    str(uuid4()), dto.actor.office_id, dto.chat_id, dto.actor.user_customer_id, "user", "audio", None
+                )
+                CreateMessageService(uow.messages).exec(CreateMessageDtoIn(message))
+                RegisterChatInputService(uow.sources).exec(
+                    dto.actor.office_id, dto.actor.user_id, message.unique_id, metadata
+                )
+                uow.commit()
+                return UploadChatAudioDtoOut(asdict(message))
