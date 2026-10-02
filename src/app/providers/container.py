@@ -1,3 +1,6 @@
+from app.models.authorization.sqlalchemy_company_provisioning_repository import SqlAlchemyCompanyProvisioningRepository
+from app.services.actor.provision_company_service import ProvisionCompanyService
+from app.use_cases.provision_company.provision_company_use_case_service import ProvisionCompanyUseCaseService
 from dataclasses import dataclass
 
 from sqlalchemy import Engine
@@ -9,6 +12,7 @@ from app.entities.voice.services.find_voice_by_unique_id.find_voice_by_unique_id
 from app.entities.voice.services.manage_voice.voice_service import VoiceService
 from app.models.authorization.sqlalchemy_authorization_repository import SqlAlchemyAuthorizationRepository
 from app.models.authorization.sqlalchemy_bootstrap_repository import SqlAlchemyBootstrapRepository
+from app.models.authorization.sqlalchemy_registration_repository import SqlAlchemyRegistrationRepository
 from app.models.chat.sqlalchemy_chat_unit_of_work import SqlAlchemyChatUnitOfWork
 from app.models.voice.sqlalchemy_sample_repository import SqlAlchemySampleRepository
 from app.models.voice.sqlalchemy_voice_catalog_repository import SqlAlchemyVoiceCatalogRepository
@@ -16,6 +20,7 @@ from app.models.voice.sqlalchemy_voices_repository import SqlAlchemyVoicesReposi
 from app.providers.database_engine_factory import DatabaseEngineFactory
 from app.services.actor.access_token_service import AccessTokenService
 from app.services.actor.bootstrap_access_service import BootstrapAccessService
+from app.services.actor.register_user_service import RegisterUserService
 from app.services.actor.resolve_actor_service import ResolveActorService
 from app.services.database.sqlalchemy_database_probe import SqlAlchemyDatabaseProbe
 from app.services.voice.private_media_storage import PrivateMediaStorage
@@ -53,6 +58,7 @@ from app.use_cases.list_voice_samples.list_voice_samples_use_case_service import
 from app.use_cases.list_voice_tags.list_voice_tags_use_case_service import ListVoiceTagsUseCaseService
 from app.use_cases.list_voices.list_voices_use_case_service import ListVoicesUseCaseService
 from app.use_cases.manage_voice.manage_voice_use_case_service import ManageVoiceUseCaseService
+from app.use_cases.register_user.register_user_use_case_service import RegisterUserUseCaseService
 from app.use_cases.register_voice_sample.register_voice_sample_use_case_service import RegisterVoiceSampleUseCaseService
 from app.use_cases.set_voice_tags.set_voice_tags_use_case_service import SetVoiceTagsUseCaseService
 from app.use_cases.submit_dubbing_job.submit_dubbing_job_use_case_service import SubmitDubbingJobUseCaseService
@@ -85,6 +91,8 @@ class Container:
     access_token: AccessTokenService
     issue_access_token: IssueAccessTokenUseCaseService
 
+    provision_company: ProvisionCompanyUseCaseService
+    register_user: RegisterUserUseCaseService
     bootstrap_access: BootstrapAccessUseCaseService
 
     voice_service: VoiceService
@@ -130,6 +138,8 @@ class Container:
 
         chat_storage = PrivateMediaStorage(settings.media_root)
         return cls(
+            provision_company=ProvisionCompanyUseCaseService(ProvisionCompanyService(SqlAlchemyCompanyProvisioningRepository(engine)),settings.provisioning_office_id),
+            register_user=RegisterUserUseCaseService(RegisterUserService(SqlAlchemyRegistrationRepository(engine))),
             edit_transcription=EditTranscriptionUseCaseService(chat_uow),
             list_transcriptions=ListTranscriptionsUseCaseService(chat_uow),
             unlink_project_audio=UnlinkProjectAudioUseCaseService(chat_uow),

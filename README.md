@@ -3,6 +3,8 @@ Aplicação que dubla textos e transcreve áudios e vídeos a partir de uma voz 
 
 ## Documentação da evolução para API
 
+- [Testar os principais fluxos pelo Postman — coleção e ambiente](docs/TESTES_POSTMAN.md)
+
 - [Banco de dados — modelo proposto](docs/DOC_BANCO_DE_DADOS_SIPLUG_DUBBER.html)
 - [Arquitetura, tecnologias e Docker — Python no padrão SiPlug](docs/DOC_ARQUITETURA_SIPLUG_DUBBER.html)
 - [Arquitetura em Markdown](docs/DOC_ARQUITETURA_SIPLUG_DUBBER.md)

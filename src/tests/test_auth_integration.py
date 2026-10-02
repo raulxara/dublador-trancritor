@@ -138,6 +138,9 @@ def test_mysql_authentication_lifecycle_and_scope():
             assert client.get(path, headers=headers).status_code == 401
             new_headers = {"Authorization": f"Bearer {new_token}"}
             assert client.get(path, headers=new_headers).status_code == 200
+            from tests.registration_scenarios import check_registration
+
+            check_registration(client, new_headers, container, result.office_id)
             assert client.delete("/api/v1/auth/access-token", headers=new_headers).status_code == 204
             assert client.get(path, headers=new_headers).status_code == 401
     finally:

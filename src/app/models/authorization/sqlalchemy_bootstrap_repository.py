@@ -56,6 +56,7 @@ class SqlAlchemyBootstrapRepository:
                     for entity, action in [
                         ("catalog", "read"),
                         ("user", "update"),
+                        ("user", "register"),
                         ("voice", "read"),
                         ("voice", "register"),
                         ("voice", "update"),

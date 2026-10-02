@@ -1,7 +1,9 @@
+from app.http.controllers.provision_company_controller import provision_company
 from fastapi import APIRouter, Depends
 
 from app.http.controllers.auth_controller import get_context, issue_token, revoke_token
 from app.http.controllers.health_controller import get_health, get_readiness
+from app.http.controllers.register_user_controller import register_user
 from app.http.controllers.voice_controller import create_voice, gender, get_voice, languages, list_voices, update_voice
 from app.http.controllers.voice_sample_controller import download_sample, list_samples, register_sample
 from app.http.dependencies.resolve_actor import resolve_actor
@@ -14,6 +16,8 @@ router.add_api_route("/ready", get_readiness, methods=["GET"])
 
 
 protected = APIRouter(dependencies=[Depends(resolve_actor)])
+protected.add_api_route("/provision-office", provision_company, methods=["POST"], status_code=201)
+protected.add_api_route("/register-user", register_user, methods=["POST"], status_code=201)
 protected.add_api_route("/auth/context", get_context, methods=["GET"])
 protected.add_api_route("/users/{user_id}/access-token", issue_token, methods=["POST"], status_code=201)
 protected.add_api_route("/auth/access-token", revoke_token, methods=["DELETE"])

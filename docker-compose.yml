@@ -10,6 +10,7 @@ services:
     ports:
       - "127.0.0.1:${DUBBER_HTTP_PORT:-8087}:8000"
     environment:
+      DUBBER_PROVISIONING_OFFICE_ID: ${DUBBER_PROVISIONING_OFFICE_ID:-}
       DUBBER_APP_NAME: SiPlug Dubber API
       DUBBER_ENVIRONMENT: local
       DUBBER_DB_HOST: db

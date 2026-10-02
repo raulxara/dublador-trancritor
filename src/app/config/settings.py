@@ -5,6 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="DUBBER_", extra="ignore")
     app_name: str = Field(default="SiPlug Dubber API", min_length=1)
+    provisioning_office_id: str = ""
     environment: str = "local"
     db_host: str = "db"
     db_port: int = Field(default=3306, ge=1, le=65535)

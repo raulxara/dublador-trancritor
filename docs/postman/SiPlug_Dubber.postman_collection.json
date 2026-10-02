@@ -1,0 +1,2287 @@
+{
+  "info": {
+    "name": "SiPlug Dubber — Fluxo principal",
+    "description": "Fluxo real da API local. Configure o ambiente e os dois uploads WAV antes de executar. Não contém credenciais nem operações de rotação/revogação. Leia docs/TESTES_POSTMAN.md. Os testes criam voz, tag, chat, mensagens, jobs e versões reais; não há exclusão automática.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "run_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "office_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "owner_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "language_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "voice_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sample_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tag_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "chat_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "input_message_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tts_job_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tts_state",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tts_poll_started",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tts_output_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "asr_job_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "asr_state",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "asr_poll_started",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "asr_output_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "conversion_job_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "conversion_state",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "conversion_poll_started",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "conversion_output_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "conversion_transcript_output_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "base_transcription_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "edited_transcription_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "link_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "cancel_job_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "media_message_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "00 — Saúde",
+      "description": "Sem autenticação. Confere processo HTTP e conexão do banco; a saúde do worker deve ser vista em docker compose ps.",
+      "item": [
+        {
+          "name": "00.1 — Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/health",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "pm.test(\"Liveness\",()=>pm.expect(pm.response.json().status).to.eql(\"ok\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "00.2 — Readiness",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/ready",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "pm.test(\"Banco disponível\",()=>pm.expect(pm.response.json().status).to.eql(\"ok\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "01 — Contexto e catálogos",
+      "description": "Inicie aqui cada execução nova. O token é o Bearer original emitido no bootstrap; não use senha, hash ou o prefixo Bearer no valor da variável.",
+      "item": [
+        {
+          "name": "01.1 — Autenticar contexto e iniciar execução",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/auth/context",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!/^[0-9a-f]{64}$/.test(pm.environment.get(\"token\") || \"\")) throw new Error(\"Preencha token no ambiente com os 64 caracteres originais, sem Bearer.\");",
+                  "pm.collectionVariables.unset(\"run_id\");",
+                  "pm.collectionVariables.unset(\"office_id\");",
+                  "pm.collectionVariables.unset(\"user_id\");",
+                  "pm.collectionVariables.unset(\"owner_id\");",
+                  "pm.collectionVariables.unset(\"language_id\");",
+                  "pm.collectionVariables.unset(\"voice_id\");",
+                  "pm.collectionVariables.unset(\"sample_id\");",
+                  "pm.collectionVariables.unset(\"tag_id\");",
+                  "pm.collectionVariables.unset(\"chat_id\");",
+                  "pm.collectionVariables.unset(\"input_message_id\");",
+                  "pm.collectionVariables.unset(\"tts_job_id\");",
+                  "pm.collectionVariables.unset(\"tts_state\");",
+                  "pm.collectionVariables.unset(\"tts_poll_started\");",
+                  "pm.collectionVariables.unset(\"tts_output_id\");",
+                  "pm.collectionVariables.unset(\"asr_job_id\");",
+                  "pm.collectionVariables.unset(\"asr_state\");",
+                  "pm.collectionVariables.unset(\"asr_poll_started\");",
+                  "pm.collectionVariables.unset(\"asr_output_id\");",
+                  "pm.collectionVariables.unset(\"conversion_job_id\");",
+                  "pm.collectionVariables.unset(\"conversion_state\");",
+                  "pm.collectionVariables.unset(\"conversion_poll_started\");",
+                  "pm.collectionVariables.unset(\"conversion_output_id\");",
+                  "pm.collectionVariables.unset(\"conversion_transcript_output_id\");",
+                  "pm.collectionVariables.unset(\"base_transcription_id\");",
+                  "pm.collectionVariables.unset(\"edited_transcription_id\");",
+                  "pm.collectionVariables.unset(\"link_id\");",
+                  "pm.collectionVariables.unset(\"cancel_job_id\");",
+                  "pm.collectionVariables.unset(\"media_message_id\");",
+                  "pm.collectionVariables.set(\"run_id\",pm.variables.replaceIn(\"{{$guid}}\"));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "const data=pm.response.json().data;",
+                  "pm.collectionVariables.set(\"office_id\",data.officeId);pm.collectionVariables.set(\"user_id\",data.userId);pm.collectionVariables.set(\"owner_id\",data.id);",
+                  "pm.test(\"Permissões do fluxo\",()=>pm.expect(data.permissions).to.include.members([\"voice.register\",\"voice.read\",\"voice.update\",\"dubbing.generate\",\"dubbing.read\",\"dubbing.download\",\"dubbing.cancel\",\"dubbing_chat.create\",\"dubbing_chat.read\",\"tag.read\",\"tag.update\",\"project_audio.read\",\"project_audio.update\",\"transcription.update\"]));",
+                  "pm.test(\"Sem cache de credencial\",()=>pm.expect(pm.response.headers.get(\"Cache-Control\")).to.include(\"no-store\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "01.2 — Idiomas: selecionar pt-BR",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/languages",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "const language=pm.response.json().data.find(x=>x.slug===\"pt-BR\");",
+                  "pm.test(\"Português cadastrado\",()=>pm.expect(language).to.be.an(\"object\"));",
+                  "if (!language) throw new Error(\"Catálogo sem pt-BR.\");pm.collectionVariables.set(\"language_id\",language._id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "01.3 — Catálogo de gênero",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/gender",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "pm.test(\"Catálogo retornado\",()=>pm.expect(pm.response.json().data).to.be.an(\"array\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 — Voz e amostra",
+      "description": "Cria registros reais identificados por Postman + run_id. Selecione um WAV com fala limpa na requisição 02.2: Body → binary → Select File. Mono PCM16, 3–180s, até 20MiB.",
+      "item": [
+        {
+          "name": "02.1 — Cadastrar voz",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/voices",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman {{run_id}}\",\n  \"language_id\": \"{{language_id}}\",\n  \"description\": \"Teste do fluxo principal do Dubber\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get(\"language_id\")) throw new Error(\"Execute as etapas anteriores: falta language_id.\");",
+                  "if (!pm.variables.get(\"run_id\")) throw new Error(\"Execute as etapas anteriores: falta run_id.\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code !== 201) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "const data=pm.response.json().data;",
+                  "pm.test(\"Identificador recebido\",()=>pm.expect(data.unique_id).to.be.a(\"string\").and.not.empty);",
+                  "pm.collectionVariables.set(\"voice_id\",data.unique_id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02.2 — Enviar amostra WAV (selecionar arquivo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "audio/wav"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/voices/{{voice_id}}/samples",
+            "description": "",
+            "body": {
+              "mode": "file",
+              "file": {
+                "src": null
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get(\"voice_id\")) throw new Error(\"Execute as etapas anteriores: falta voice_id.\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code !== 201) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "const data=pm.response.json().data;",
+                  "pm.test(\"Identificador recebido\",()=>pm.expect(data.unique_id).to.be.a(\"string\").and.not.empty);",
+                  "pm.collectionVariables.set(\"sample_id\",data.unique_id);",
+                  "pm.test(\"Amostra pronta\",()=>pm.expect(data.validation_state).to.eql(\"ready\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02.3 — Conferir voz e amostra atual",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/voices/{{voice_id}}",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get(\"voice_id\")) throw new Error(\"Execute as etapas anteriores: falta voice_id.\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "pm.test(\"Amostra vinculada\",()=>pm.expect(pm.response.json().data.current_sample_id).to.eql(pm.collectionVariables.get(\"sample_id\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02.4 — Listar amostras",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/voices/{{voice_id}}/samples",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get(\"voice_id\")) throw new Error(\"Execute as etapas anteriores: falta voice_id.\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "pm.test(\"Amostra no histórico\",()=>pm.expect(pm.response.json().data.map(x=>x.unique_id)).to.include(pm.collectionVariables.get(\"sample_id\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02.5 — Baixar amostra",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/voices/{{voice_id}}/samples/{{sample_id}}/audio",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get(\"sample_id\")) throw new Error(\"Execute as etapas anteriores: falta sample_id.\");",
+                  "if (!pm.variables.get(\"voice_id\")) throw new Error(\"Execute as etapas anteriores: falta voice_id.\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "pm.test(\"WAV privado\",()=>pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"audio/wav\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 — Tags",
+      "description": "Slug único por execução. Confere criação, associação e leitura.",
+      "item": [
+        {
+          "name": "03.1 — Criar tag",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/tags",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman narrador\",\n  \"slug\": \"postman-{{run_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get(\"run_id\")) throw new Error(\"Execute as etapas anteriores: falta run_id.\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code !== 201) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "const data=pm.response.json().data;",
+                  "pm.test(\"Identificador recebido\",()=>pm.expect(data.unique_id).to.be.a(\"string\").and.not.empty);",
+                  "pm.collectionVariables.set(\"tag_id\",data.unique_id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03.2 — Associar tag à voz",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/voices/{{voice_id}}/tags",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tag_ids\": [\n    \"{{tag_id}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get(\"tag_id\")) throw new Error(\"Execute as etapas anteriores: falta tag_id.\");",
+                  "if (!pm.variables.get(\"voice_id\")) throw new Error(\"Execute as etapas anteriores: falta voice_id.\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "pm.test(\"Tag associada\",()=>pm.expect(pm.response.json().data.map(x=>x.unique_id)).to.include(pm.collectionVariables.get(\"tag_id\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03.3 — Consultar tags da voz",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/voices/{{voice_id}}/tags",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get(\"voice_id\")) throw new Error(\"Execute as etapas anteriores: falta voice_id.\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "pm.test(\"Tag mantida\",()=>pm.expect(pm.response.json().data.map(x=>x.unique_id)).to.include(pm.collectionVariables.get(\"tag_id\")));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 — Texto para voz",
+      "description": "Cria chat com a voz cadastrada e um job. O worker deve estar saudável e ter os modelos importados.",
+      "item": [
+        {
+          "name": "04.1 — Criar chat",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/chats",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Postman {{run_id}}\",\n  \"selected_voice_id\": \"{{voice_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get(\"run_id\")) throw new Error(\"Execute as etapas anteriores: falta run_id.\");",
+                  "if (!pm.variables.get(\"voice_id\")) throw new Error(\"Execute as etapas anteriores: falta voice_id.\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code !== 201) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "const data=pm.response.json().data;",
+                  "pm.test(\"Identificador recebido\",()=>pm.expect(data.unique_id).to.be.a(\"string\").and.not.empty);",
+                  "pm.collectionVariables.set(\"chat_id\",data.unique_id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04.2 — Solicitar geração de voz",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{run_id}}-tts"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/chats/{{chat_id}}/jobs",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"operation\": \"text_to_speech\",\n  \"input_text\": \"Olá! Este é um teste da API de dublagem da SiPlug. O texto foi enviado pelo Postman.\",\n  \"speed\": \"1.00\",\n  \"pitch_semitones\": \"0.00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get(\"chat_id\")) throw new Error(\"Execute as etapas anteriores: falta chat_id.\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 202\", function () { pm.response.to.have.status(202); });",
+                  "if (pm.response.code !== 202) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "const data=pm.response.json().data;",
+                  "pm.test(\"Identificador recebido\",()=>pm.expect(data.unique_id).to.be.a(\"string\").and.not.empty);",
+                  "pm.collectionVariables.set(\"tts_job_id\",data.unique_id);",
+                  "pm.collectionVariables.set(\"tts_poll_started\",String(Date.now()));",
+                  "pm.collectionVariables.set(\"tts_state\",data.processing_state);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04.3 — Repetir pedido: testar idempotência",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{run_id}}-tts"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/chats/{{chat_id}}/jobs",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"operation\": \"text_to_speech\",\n  \"input_text\": \"Olá! Este é um teste da API de dublagem da SiPlug. O texto foi enviado pelo Postman.\",\n  \"speed\": \"1.00\",\n  \"pitch_semitones\": \"0.00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get(\"chat_id\")) throw new Error(\"Execute as etapas anteriores: falta chat_id.\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 202\", function () { pm.response.to.have.status(202); });",
+                  "if (pm.response.code !== 202) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "pm.test(\"Mesmo job, sem duplicação\",()=>pm.expect(pm.response.json().data.unique_id).to.eql(pm.collectionVariables.get(\"tts_job_id\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04.4 — Aguardar geração concluir",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/jobs/{{tts_job_id}}",
+            "description": "No Runner, repete a consulta a cada aproximadamente 2 segundos até completed (máximo padrão 25 minutos). No Send, repita manualmente enquanto queued/processing. Não prossiga se failed/cancelled."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get(\"tts_job_id\")) throw new Error(\"Execute as etapas anteriores: falta tts_job_id.\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "",
+                  "const data=pm.response.json().data;",
+                  "pm.collectionVariables.set(\"tts_state\",data.processing_state);",
+                  "pm.test(\"Job correto\",()=>pm.expect(data.unique_id).to.eql(pm.collectionVariables.get(\"tts_job_id\")));",
+                  "if ([\"queued\",\"processing\"].includes(data.processing_state)) {",
+                  "    const started=Number(pm.collectionVariables.get(\"tts_poll_started\"));",
+                  "    const timeout=Number(pm.environment.get(\"poll_timeout_ms\") || 1500000);",
+                  "    if (!started || !Number.isFinite(timeout) || timeout < 60000 || timeout > 1800000 || Date.now()-started>timeout) {",
+                  "        pm.execution.setNextRequest(null); throw new Error(\"Tempo limite aguardando job. Verifique docker compose ps/logs e consulte este job novamente.\");",
+                  "    }",
+                  "    pm.execution.setNextRequest(pm.info.requestId);",
+                  "    setTimeout(function () {}, 2000);",
+                  "} else {",
+                  "    pm.test(\"Processamento concluído\",()=>pm.expect(data.processing_state).to.eql(\"completed\"));",
+                  "    if (data.processing_state !== \"completed\") {pm.execution.setNextRequest(null);throw new Error(\"Job encerrado: \"+data.processing_state+\" / \"+data.error_code);}",
+                  "    pm.test(\"Resposta assistant criada\",()=>pm.expect(data.output_message_id).to.be.a(\"string\").and.not.empty);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04.5 — Consultar áudio gerado",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/jobs/{{tts_job_id}}/outputs",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get(\"tts_job_id\")) throw new Error(\"Execute as etapas anteriores: falta tts_job_id.\");",
+                  "if (pm.collectionVariables.get(\"tts_state\")!==\"completed\") throw new Error(\"Aguarde o job tts terminar na consulta anterior.\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "const rows=pm.response.json().data;",
+                  "const audio=rows.find(x=>x.purpose===\"audio\");",
+                  "pm.test(\"Resultado audio disponível\",()=>pm.expect(audio).to.be.an(\"object\"));",
+                  "if (!audio) {pm.execution.setNextRequest(null);throw new Error(\"Resultado ausente.\");}",
+                  "pm.collectionVariables.set(\"tts_output_id\",audio.unique_id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04.6 — Baixar áudio gerado",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/jobs/{{tts_job_id}}/outputs/{{tts_output_id}}/file",
+            "description": "Use Save Response / Save response to file para salvar e ouvir o WAV. A resposta é binária, não JSON."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get(\"tts_job_id\")) throw new Error(\"Execute as etapas anteriores: falta tts_job_id.\");",
+                  "if (!pm.variables.get(\"tts_output_id\")) throw new Error(\"Execute as etapas anteriores: falta tts_output_id.\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "pm.test(\"Conteúdo audio/wav\",()=>pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"audio/wav\"));",
+                  "pm.test(\"Download privado\",()=>pm.expect(pm.response.headers.get(\"Cache-Control\")).to.include(\"no-store\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04.7 — Histórico do chat",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/chats/{{chat_id}}/messages",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get(\"chat_id\")) throw new Error(\"Execute as etapas anteriores: falta chat_id.\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "pm.test(\"Resposta assistant\",()=>pm.expect(pm.response.json().data.some(x=>x.role===\"assistant\" && x.message_type===\"result\")).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 — Áudio para transcrição",
+      "description": "Selecione na 05.1 um WAV com fala audível (3–180s). Pode ser a mesma amostra usada na voz; não use silêncio ou apenas um tom.",
+      "item": [
+        {
+          "name": "05.1 — Enviar áudio ao chat (selecionar arquivo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "audio/wav"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/chats/{{chat_id}}/audio",
+            "description": "",
+            "body": {
+              "mode": "file",
+              "file": {
+                "src": null
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get(\"chat_id\")) throw new Error(\"Execute as etapas anteriores: falta chat_id.\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code !== 201) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "const data=pm.response.json().data;",
+                  "pm.test(\"Identificador recebido\",()=>pm.expect(data.unique_id).to.be.a(\"string\").and.not.empty);",
+                  "pm.collectionVariables.set(\"input_message_id\",data.unique_id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05.2 — Baixar entrada normalizada",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/chats/{{chat_id}}/messages/{{input_message_id}}/audio",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get(\"chat_id\")) throw new Error(\"Execute as etapas anteriores: falta chat_id.\");",
+                  "if (!pm.variables.get(\"input_message_id\")) throw new Error(\"Execute as etapas anteriores: falta input_message_id.\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "pm.test(\"WAV recebido\",()=>pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"audio/wav\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05.3 — Solicitar transcrição",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{run_id}}-asr"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/chats/{{chat_id}}/jobs",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"operation\": \"transcribe\",\n  \"input_message_id\": \"{{input_message_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get(\"chat_id\")) throw new Error(\"Execute as etapas anteriores: falta chat_id.\");",
+                  "if (!pm.variables.get(\"input_message_id\")) throw new Error(\"Execute as etapas anteriores: falta input_message_id.\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 202\", function () { pm.response.to.have.status(202); });",
+                  "if (pm.response.code !== 202) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "const data=pm.response.json().data;",
+                  "pm.test(\"Identificador recebido\",()=>pm.expect(data.unique_id).to.be.a(\"string\").and.not.empty);",
+                  "pm.collectionVariables.set(\"asr_job_id\",data.unique_id);",
+                  "pm.collectionVariables.set(\"asr_poll_started\",String(Date.now()));",
+                  "pm.collectionVariables.set(\"asr_state\",data.processing_state);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05.4 — Aguardar transcrição concluir",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/jobs/{{asr_job_id}}",
+            "description": "No Runner, repete a consulta a cada aproximadamente 2 segundos até completed (máximo padrão 25 minutos). No Send, repita manualmente enquanto queued/processing. Não prossiga se failed/cancelled."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get(\"asr_job_id\")) throw new Error(\"Execute as etapas anteriores: falta asr_job_id.\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "",
+                  "const data=pm.response.json().data;",
+                  "pm.collectionVariables.set(\"asr_state\",data.processing_state);",
+                  "pm.test(\"Job correto\",()=>pm.expect(data.unique_id).to.eql(pm.collectionVariables.get(\"asr_job_id\")));",
+                  "if ([\"queued\",\"processing\"].includes(data.processing_state)) {",
+                  "    const started=Number(pm.collectionVariables.get(\"asr_poll_started\"));",
+                  "    const timeout=Number(pm.environment.get(\"poll_timeout_ms\") || 1500000);",
+                  "    if (!started || !Number.isFinite(timeout) || timeout < 60000 || timeout > 1800000 || Date.now()-started>timeout) {",
+                  "        pm.execution.setNextRequest(null); throw new Error(\"Tempo limite aguardando job. Verifique docker compose ps/logs e consulte este job novamente.\");",
+                  "    }",
+                  "    pm.execution.setNextRequest(pm.info.requestId);",
+                  "    setTimeout(function () {}, 2000);",
+                  "} else {",
+                  "    pm.test(\"Processamento concluído\",()=>pm.expect(data.processing_state).to.eql(\"completed\"));",
+                  "    if (data.processing_state !== \"completed\") {pm.execution.setNextRequest(null);throw new Error(\"Job encerrado: \"+data.processing_state+\" / \"+data.error_code);}",
+                  "    pm.test(\"Resposta assistant criada\",()=>pm.expect(data.output_message_id).to.be.a(\"string\").and.not.empty);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05.5 — Consultar TXT",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/jobs/{{asr_job_id}}/outputs",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get(\"asr_job_id\")) throw new Error(\"Execute as etapas anteriores: falta asr_job_id.\");",
+                  "if (pm.collectionVariables.get(\"asr_state\")!==\"completed\") throw new Error(\"Aguarde o job asr terminar na consulta anterior.\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "const rows=pm.response.json().data;",
+                  "const transcript=rows.find(x=>x.purpose===\"transcript\");",
+                  "pm.test(\"Resultado transcript disponível\",()=>pm.expect(transcript).to.be.an(\"object\"));",
+                  "if (!transcript) {pm.execution.setNextRequest(null);throw new Error(\"Resultado ausente.\");}",
+                  "pm.collectionVariables.set(\"asr_output_id\",transcript.unique_id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05.6 — Baixar transcrição original",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/jobs/{{asr_job_id}}/outputs/{{asr_output_id}}/file",
+            "description": "TXT UTF-8 original da execução; edições posteriores não substituem este arquivo."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get(\"asr_job_id\")) throw new Error(\"Execute as etapas anteriores: falta asr_job_id.\");",
+                  "if (!pm.variables.get(\"asr_output_id\")) throw new Error(\"Execute as etapas anteriores: falta asr_output_id.\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "pm.test(\"Conteúdo text/plain\",()=>pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"text/plain\"));",
+                  "pm.test(\"Download privado\",()=>pm.expect(pm.response.headers.get(\"Cache-Control\")).to.include(\"no-store\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06 — Editar transcrição",
+      "description": "Edição cria versão 2; mantém versão reconhecida, segmentos e TXT original. Nova síntese com texto editado é um novo job, não um efeito automático da edição.",
+      "item": [
+        {
+          "name": "06.1 — Obter versão atual",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/jobs/{{asr_job_id}}/transcriptions",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get(\"asr_job_id\")) throw new Error(\"Execute as etapas anteriores: falta asr_job_id.\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "const rows=pm.response.json().data;pm.test(\"Versão inicial\",()=>pm.expect(rows[0].version).to.eql(1));pm.collectionVariables.set(\"base_transcription_id\",rows[0].unique_id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06.2 — Criar versão editada",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/jobs/{{asr_job_id}}/transcriptions",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"base_transcription_id\": \"{{base_transcription_id}}\",\n  \"text\": \"Texto revisado pelo Postman para uma próxima dublagem.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get(\"asr_job_id\")) throw new Error(\"Execute as etapas anteriores: falta asr_job_id.\");",
+                  "if (!pm.variables.get(\"base_transcription_id\")) throw new Error(\"Execute as etapas anteriores: falta base_transcription_id.\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code !== 201) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "const data=pm.response.json().data;",
+                  "pm.test(\"Identificador recebido\",()=>pm.expect(data.unique_id).to.be.a(\"string\").and.not.empty);",
+                  "pm.collectionVariables.set(\"edited_transcription_id\",data.unique_id);",
+                  "pm.test(\"Versão 2 editada\",()=>{pm.expect(data.version).to.eql(2);pm.expect(data.origin).to.eql(\"edited\");});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06.3 — Recusar edição com base antiga",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/jobs/{{asr_job_id}}/transcriptions",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"base_transcription_id\": \"{{base_transcription_id}}\",\n  \"text\": \"Texto revisado pelo Postman para uma próxima dublagem.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get(\"asr_job_id\")) throw new Error(\"Execute as etapas anteriores: falta asr_job_id.\");",
+                  "if (!pm.variables.get(\"base_transcription_id\")) throw new Error(\"Execute as etapas anteriores: falta base_transcription_id.\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", function () { pm.response.to.have.status(409); });",
+                  "if (pm.response.code !== 409) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06.4 — Conferir versões 2 e 1",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/jobs/{{asr_job_id}}/transcriptions",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get(\"asr_job_id\")) throw new Error(\"Execute as etapas anteriores: falta asr_job_id.\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "pm.test(\"Histórico preservado\",()=>pm.expect(pm.response.json().data.map(x=>x.version)).to.eql([2,1]));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "07 — Áudio para outra voz",
+      "description": "Usa o áudio recebido e a amostra selecionada no chat. Executa reconhecimento e síntese, sem tradução.",
+      "item": [
+        {
+          "name": "07.1 — Solicitar conversão de voz",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{run_id}}-conversion"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/chats/{{chat_id}}/jobs",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"operation\": \"speech_to_speech\",\n  \"input_message_id\": \"{{input_message_id}}\",\n  \"preserve_timing\": true,\n  \"speed\": \"1.00\",\n  \"pitch_semitones\": \"0.00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get(\"chat_id\")) throw new Error(\"Execute as etapas anteriores: falta chat_id.\");",
+                  "if (!pm.variables.get(\"input_message_id\")) throw new Error(\"Execute as etapas anteriores: falta input_message_id.\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 202\", function () { pm.response.to.have.status(202); });",
+                  "if (pm.response.code !== 202) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "const data=pm.response.json().data;",
+                  "pm.test(\"Identificador recebido\",()=>pm.expect(data.unique_id).to.be.a(\"string\").and.not.empty);",
+                  "pm.collectionVariables.set(\"conversion_job_id\",data.unique_id);",
+                  "pm.collectionVariables.set(\"conversion_poll_started\",String(Date.now()));",
+                  "pm.collectionVariables.set(\"conversion_state\",data.processing_state);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07.2 — Aguardar conversão concluir",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/jobs/{{conversion_job_id}}",
+            "description": "No Runner, repete a consulta a cada aproximadamente 2 segundos até completed (máximo padrão 25 minutos). No Send, repita manualmente enquanto queued/processing. Não prossiga se failed/cancelled."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get(\"conversion_job_id\")) throw new Error(\"Execute as etapas anteriores: falta conversion_job_id.\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "",
+                  "const data=pm.response.json().data;",
+                  "pm.collectionVariables.set(\"conversion_state\",data.processing_state);",
+                  "pm.test(\"Job correto\",()=>pm.expect(data.unique_id).to.eql(pm.collectionVariables.get(\"conversion_job_id\")));",
+                  "if ([\"queued\",\"processing\"].includes(data.processing_state)) {",
+                  "    const started=Number(pm.collectionVariables.get(\"conversion_poll_started\"));",
+                  "    const timeout=Number(pm.environment.get(\"poll_timeout_ms\") || 1500000);",
+                  "    if (!started || !Number.isFinite(timeout) || timeout < 60000 || timeout > 1800000 || Date.now()-started>timeout) {",
+                  "        pm.execution.setNextRequest(null); throw new Error(\"Tempo limite aguardando job. Verifique docker compose ps/logs e consulte este job novamente.\");",
+                  "    }",
+                  "    pm.execution.setNextRequest(pm.info.requestId);",
+                  "    setTimeout(function () {}, 2000);",
+                  "} else {",
+                  "    pm.test(\"Processamento concluído\",()=>pm.expect(data.processing_state).to.eql(\"completed\"));",
+                  "    if (data.processing_state !== \"completed\") {pm.execution.setNextRequest(null);throw new Error(\"Job encerrado: \"+data.processing_state+\" / \"+data.error_code);}",
+                  "    pm.test(\"Resposta assistant criada\",()=>pm.expect(data.output_message_id).to.be.a(\"string\").and.not.empty);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07.3 — Consultar WAV e TXT",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/jobs/{{conversion_job_id}}/outputs",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get(\"conversion_job_id\")) throw new Error(\"Execute as etapas anteriores: falta conversion_job_id.\");",
+                  "if (pm.collectionVariables.get(\"conversion_state\")!==\"completed\") throw new Error(\"Aguarde o job conversion terminar na consulta anterior.\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "const rows=pm.response.json().data;",
+                  "const audio=rows.find(x=>x.purpose===\"audio\");",
+                  "pm.test(\"Resultado audio disponível\",()=>pm.expect(audio).to.be.an(\"object\"));",
+                  "if (!audio) {pm.execution.setNextRequest(null);throw new Error(\"Resultado ausente.\");}",
+                  "pm.collectionVariables.set(\"conversion_output_id\",audio.unique_id);",
+                  "const transcript=rows.find(x=>x.purpose===\"transcript\");",
+                  "pm.test(\"Resultado transcript disponível\",()=>pm.expect(transcript).to.be.an(\"object\"));",
+                  "if (!transcript) {pm.execution.setNextRequest(null);throw new Error(\"Resultado ausente.\");}",
+                  "pm.collectionVariables.set(\"conversion_transcript_output_id\",transcript.unique_id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07.4 — Baixar voz convertida",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/jobs/{{conversion_job_id}}/outputs/{{conversion_output_id}}/file",
+            "description": "Use Save Response / Save response to file para salvar e ouvir o WAV. A resposta é binária, não JSON."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get(\"conversion_job_id\")) throw new Error(\"Execute as etapas anteriores: falta conversion_job_id.\");",
+                  "if (!pm.variables.get(\"conversion_output_id\")) throw new Error(\"Execute as etapas anteriores: falta conversion_output_id.\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "pm.test(\"Conteúdo audio/wav\",()=>pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"audio/wav\"));",
+                  "pm.test(\"Download privado\",()=>pm.expect(pm.response.headers.get(\"Cache-Control\")).to.include(\"no-store\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "08 — Vínculo de projeto",
+      "description": "O identificador representa um projeto externo. O Postman testa o contrato local; a SiPlug precisa autorizar o projeto antes de chamar o Dubber.",
+      "item": [
+        {
+          "name": "08.1 — Vincular áudio ao projeto de teste",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/projects/postman-{{run_id}}/audio-links",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"output_id\": \"{{tts_output_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get(\"run_id\")) throw new Error(\"Execute as etapas anteriores: falta run_id.\");",
+                  "if (!pm.variables.get(\"tts_output_id\")) throw new Error(\"Execute as etapas anteriores: falta tts_output_id.\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code !== 201) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "const data=pm.response.json().data;",
+                  "pm.test(\"Identificador recebido\",()=>pm.expect(data.unique_id).to.be.a(\"string\").and.not.empty);",
+                  "pm.collectionVariables.set(\"link_id\",data.unique_id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08.2 — Repetir vínculo: mesmo ID",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/projects/postman-{{run_id}}/audio-links",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"output_id\": \"{{tts_output_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get(\"run_id\")) throw new Error(\"Execute as etapas anteriores: falta run_id.\");",
+                  "if (!pm.variables.get(\"tts_output_id\")) throw new Error(\"Execute as etapas anteriores: falta tts_output_id.\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code !== 201) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "pm.test(\"Vínculo idempotente\",()=>pm.expect(pm.response.json().data.unique_id).to.eql(pm.collectionVariables.get(\"link_id\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08.3 — Listar vínculo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/projects/postman-{{run_id}}/audio-links",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get(\"run_id\")) throw new Error(\"Execute as etapas anteriores: falta run_id.\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "pm.test(\"Vínculo visível\",()=>pm.expect(pm.response.json().data.map(x=>x.unique_id)).to.include(pm.collectionVariables.get(\"link_id\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08.4 — Desvincular sem apagar áudio",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{base_url}}/api/v1/project-audio-links/{{link_id}}",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get(\"link_id\")) throw new Error(\"Execute as etapas anteriores: falta link_id.\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "pm.test(\"Vínculo inativo\",()=>pm.expect(pm.response.json().data.status).to.eql(\"inactive\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08.5 — Áudio continua disponível",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/jobs/{{tts_job_id}}/outputs/{{tts_output_id}}/file",
+            "description": "Use Save Response / Save response to file para salvar e ouvir o WAV. A resposta é binária, não JSON."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get(\"tts_job_id\")) throw new Error(\"Execute as etapas anteriores: falta tts_job_id.\");",
+                  "if (!pm.variables.get(\"tts_output_id\")) throw new Error(\"Execute as etapas anteriores: falta tts_output_id.\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "pm.test(\"Conteúdo audio/wav\",()=>pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"audio/wav\"));",
+                  "pm.test(\"Download privado\",()=>pm.expect(pm.response.headers.get(\"Cache-Control\")).to.include(\"no-store\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "09 — Rejeições esperadas",
+      "description": "Os testes ficam verdes quando a API rejeita corretamente. Não revoga nem rotaciona credenciais.",
+      "item": [
+        {
+          "name": "09.1 — Rejeitar acesso sem token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/voices",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", function () { pm.response.to.have.status(401); });",
+                  "if (pm.response.code !== 401) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09.2 — Rejeitar token inválido",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/voices",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "invalid-token",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", function () { pm.response.to.have.status(401); });",
+                  "if (pm.response.code !== 401) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09.3 — Rejeitar office_id enviado no JSON",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/voices",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Inválido\",\n  \"language_id\": \"{{language_id}}\",\n  \"office_id\": \"{{office_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get(\"language_id\")) throw new Error(\"Execute as etapas anteriores: falta language_id.\");",
+                  "if (!pm.variables.get(\"office_id\")) throw new Error(\"Execute as etapas anteriores: falta office_id.\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 422\", function () { pm.response.to.have.status(422); });",
+                  "if (pm.response.code !== 422) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09.4 — Mesma chave com outro texto: conflito",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{run_id}}-tts"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/chats/{{chat_id}}/jobs",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"operation\": \"text_to_speech\",\n  \"input_text\": \"Outro conteúdo para a mesma chave.\",\n  \"speed\": \"1.00\",\n  \"pitch_semitones\": \"0.00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get(\"chat_id\")) throw new Error(\"Execute as etapas anteriores: falta chat_id.\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", function () { pm.response.to.have.status(409); });",
+                  "if (pm.response.code !== 409) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09.5 — Job concluído não pode ser cancelado",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/api/v1/jobs/{{tts_job_id}}/cancel",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.variables.get(\"tts_job_id\")) throw new Error(\"Execute as etapas anteriores: falta tts_job_id.\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", function () { pm.response.to.have.status(409); });",
+                  "if (pm.response.code !== 409) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "10 — MP3 e MP4 (opcional)",
+      "description": "Ative run_media_tests=true e selecione os arquivos binários nas duas requisições. Desativado por padrão para não interromper o fluxo por falta de arquivo.",
+      "item": [
+        {
+          "name": "10.1 — Receber MP3 (selecionar arquivo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "audio/mpeg"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/chats/{{chat_id}}/audio",
+            "description": "",
+            "body": {
+              "mode": "file",
+              "file": {
+                "src": null
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"run_media_tests\") !== \"true\") { pm.execution.skipRequest(); } else {",
+                  "if (!pm.variables.get(\"chat_id\")) throw new Error(\"Execute as etapas anteriores: falta chat_id.\");",
+                  "",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code !== 201) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "const data=pm.response.json().data;",
+                  "pm.test(\"Identificador recebido\",()=>pm.expect(data.unique_id).to.be.a(\"string\").and.not.empty);",
+                  "pm.collectionVariables.set(\"media_message_id\",data.unique_id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10.2 — Receber MP4 com áudio (selecionar arquivo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "video/mp4"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/chats/{{chat_id}}/audio",
+            "description": "",
+            "body": {
+              "mode": "file",
+              "file": {
+                "src": null
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"run_media_tests\") !== \"true\") { pm.execution.skipRequest(); } else {",
+                  "if (!pm.variables.get(\"chat_id\")) throw new Error(\"Execute as etapas anteriores: falta chat_id.\");",
+                  "",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code !== 201) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "const data=pm.response.json().data;",
+                  "pm.test(\"Identificador recebido\",()=>pm.expect(data.unique_id).to.be.a(\"string\").and.not.empty);",
+                  "pm.collectionVariables.set(\"media_message_id\",data.unique_id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10.3 — Baixar último arquivo convertido em WAV",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/chats/{{chat_id}}/messages/{{media_message_id}}/audio",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"run_media_tests\") !== \"true\") { pm.execution.skipRequest(); } else {",
+                  "if (!pm.variables.get(\"chat_id\")) throw new Error(\"Execute as etapas anteriores: falta chat_id.\");",
+                  "if (!pm.variables.get(\"media_message_id\")) throw new Error(\"Execute as etapas anteriores: falta media_message_id.\");",
+                  "",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "pm.test(\"Normalizado em WAV\",()=>pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"audio/wav\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "11 — Isolamento (opcional)",
+      "description": "Ative run_scope_tests=true e forneça other_token de OUTRO usuário já existente, com permissões dubbing.read/download. Ter permissão e ainda receber 404 demonstra isolamento. Um 403 só demonstra falta de permissão.",
+      "item": [
+        {
+          "name": "11.1 — Outro proprietário não lê o job",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/jobs/{{tts_job_id}}",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{other_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"run_scope_tests\") !== \"true\") { pm.execution.skipRequest(); } else {",
+                  "if (!pm.variables.get(\"tts_job_id\")) throw new Error(\"Execute as etapas anteriores: falta tts_job_id.\");",
+                  "if (!/^[0-9a-f]{64}$/.test(pm.environment.get(\"other_token\") || \"\")) throw new Error(\"Informe other_token de outro usuário com permissões adequadas.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", function () { pm.response.to.have.status(404); });",
+                  "if (pm.response.code !== 404) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11.2 — Outro proprietário não baixa áudio",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/jobs/{{tts_job_id}}/outputs/{{tts_output_id}}/file",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{other_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"run_scope_tests\") !== \"true\") { pm.execution.skipRequest(); } else {",
+                  "if (!pm.variables.get(\"tts_job_id\")) throw new Error(\"Execute as etapas anteriores: falta tts_job_id.\");",
+                  "if (!pm.variables.get(\"tts_output_id\")) throw new Error(\"Execute as etapas anteriores: falta tts_output_id.\");",
+                  "if (!/^[0-9a-f]{64}$/.test(pm.environment.get(\"other_token\") || \"\")) throw new Error(\"Informe other_token de outro usuário com permissões adequadas.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", function () { pm.response.to.have.status(404); });",
+                  "if (pm.response.code !== 404) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "12 — Cancelamento (opcional)",
+      "description": "Ative run_cancel_tests=true. Cria um job de teste e tenta cancelá-lo imediatamente. Se receber 409, o job terminou antes do cancelamento; inicie outra execução com novo run_id e repita. Não cancele jobs de uso real.",
+      "item": [
+        {
+          "name": "12.1 — Criar job para cancelar",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{run_id}}-cancel"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/chats/{{chat_id}}/jobs",
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"operation\": \"text_to_speech\",\n  \"input_text\": \"Este áudio é uma solicitação de teste de cancelamento. A execução deverá ser cancelada pelo Postman antes da publicação.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"run_cancel_tests\") !== \"true\") { pm.execution.skipRequest(); } else {",
+                  "if (!pm.variables.get(\"chat_id\")) throw new Error(\"Execute as etapas anteriores: falta chat_id.\");",
+                  "",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 202\", function () { pm.response.to.have.status(202); });",
+                  "if (pm.response.code !== 202) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "const data=pm.response.json().data;",
+                  "pm.test(\"Identificador recebido\",()=>pm.expect(data.unique_id).to.be.a(\"string\").and.not.empty);",
+                  "pm.collectionVariables.set(\"cancel_job_id\",data.unique_id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12.2 — Cancelar job queued ou processing",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/api/v1/jobs/{{cancel_job_id}}/cancel",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"run_cancel_tests\") !== \"true\") { pm.execution.skipRequest(); } else {",
+                  "if (!pm.variables.get(\"cancel_job_id\")) throw new Error(\"Execute as etapas anteriores: falta cancel_job_id.\");",
+                  "",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "pm.test(\"Job cancelado\",()=>pm.expect(pm.response.json().data.processing_state).to.eql(\"cancelled\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12.3 — Conferir cancelamento persistido",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/v1/jobs/{{cancel_job_id}}",
+            "description": ""
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"run_cancel_tests\") !== \"true\") { pm.execution.skipRequest(); } else {",
+                  "if (!pm.variables.get(\"cancel_job_id\")) throw new Error(\"Execute as etapas anteriores: falta cancel_job_id.\");",
+                  "",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code !== 200) { pm.execution.setNextRequest(null); throw new Error(\"Resposta inesperada; consulte o corpo e pare esta etapa.\"); }",
+                  "pm.test(\"Estado cancelled\",()=>pm.expect(pm.response.json().data.processing_state).to.eql(\"cancelled\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
