@@ -1,14 +1,14 @@
+import gc
 import hashlib
 import json
 from pathlib import Path
 
 import numpy as np
 import soundfile as sf
-import whisper
-from TTS.tts.configs.xtts_config import XttsConfig
-from TTS.tts.models.xtts import Xtts
 
 from app.engines.audio_filters import AudioFilters
+from app.engines.text_chunks import synthesis_chunks
+from app.engines.isolated_transcription import transcribe_isolated, preflight_transcription
 
 
 class LocalAudioEngine:
@@ -17,10 +17,11 @@ class LocalAudioEngine:
     def __init__(self, model_root):
         self.root = Path(model_root)
         self.xtts = None
-        self.asr = None
 
     def load_xtts(self):
         if self.xtts is None:
+            from TTS.tts.configs.xtts_config import XttsConfig
+            from TTS.tts.models.xtts import Xtts
             directory = self.root / "xtts_v2"
             config = XttsConfig()
             config.load_json(str(directory / "config.json"))
@@ -28,11 +29,6 @@ class LocalAudioEngine:
             self.xtts.load_checkpoint(config, checkpoint_dir=str(directory), use_deepspeed=False)
             self.xtts.eval()
         return self.xtts
-
-    def load_asr(self):
-        if self.asr is None:
-            self.asr = whisper.load_model(str(self.root / "whisper" / "tiny.pt"), device="cpu")
-        return self.asr
 
     def preflight(self):
         manifest = self.root / "manifest.json"
@@ -44,7 +40,7 @@ class LocalAudioEngine:
                 with path.open("rb") as stream:
                     if hashlib.file_digest(stream, "sha256").hexdigest() != digest:
                         raise ValueError("Model checksum mismatch")
-        self.load_asr()
+        preflight_transcription(self.root)
         self.load_xtts()
 
     def run(self, request, directory):
@@ -56,9 +52,7 @@ class LocalAudioEngine:
         transcript = None
         segments = []
         if operation != "text_to_speech":
-            result = self.load_asr().transcribe(
-                request["input_path"], language=language, fp16=False, temperature=0, verbose=False
-            )
+            result = transcribe_isolated(self.root, request["input_path"], language, directory)
             transcript = result["text"].strip()
             language = result["language"]
             if not transcript:
@@ -81,10 +75,16 @@ class LocalAudioEngine:
             latent, embedding = model.get_conditioning_latents(audio_path=[request["sample_path"]])
 
             def synthesize(text, index):
-                result = model.inference(text, language, latent, embedding, enable_text_splitting=True)
                 raw = directory / f"raw-{index}.wav"
                 cooked = directory / f"cooked-{index}.wav"
-                sf.write(str(raw), result["wav"], 24000, subtype="PCM_16")
+                # Write bounded phrases incrementally instead of decoding a long
+                # utterance into large intermediate vocoder tensors at once.
+                with sf.SoundFile(str(raw), mode="w", samplerate=24000, channels=1, subtype="PCM_16") as output:
+                    for phrase in synthesis_chunks(text):
+                        result = model.inference(phrase, language, latent, embedding, enable_text_splitting=True)
+                        output.write(result["wav"])
+                        del result
+                gc.collect()
                 AudioFilters.convert(raw, cooked, request["speed"], request["pitch_semitones"])
                 return cooked
 

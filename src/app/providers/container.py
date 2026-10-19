@@ -1,3 +1,5 @@
+from app.services.voice.default_voice_service import DefaultVoiceService
+from app.models.voice.sqlalchemy_default_voice_repository import SqlAlchemyDefaultVoiceRepository
 from app.models.authorization.sqlalchemy_company_provisioning_repository import SqlAlchemyCompanyProvisioningRepository
 from app.services.actor.provision_company_service import ProvisionCompanyService
 from app.use_cases.provision_company.provision_company_use_case_service import ProvisionCompanyUseCaseService
@@ -163,7 +165,7 @@ class Container:
             cancel_dubbing_job=CancelDubbingJobUseCaseService(chat_uow, chat_storage),
             upload_chat_audio=UploadChatAudioUseCaseService(chat_uow, chat_storage),
             download_chat_audio=DownloadChatAudioUseCaseService(chat_uow, chat_storage),
-            list_voices=ListVoicesUseCaseService(voice_service),
+            list_voices=ListVoicesUseCaseService(voice_service, DefaultVoiceService(SqlAlchemyDefaultVoiceRepository(engine), chat_storage, settings.media_root + "/system/adam.wav")),
             list_voice_samples=ListVoiceSamplesUseCaseService(samples),
             download_voice_sample=DownloadVoiceSampleUseCaseService(samples),
             list_voice_catalog=ListVoiceCatalogUseCaseService(

@@ -1,0 +1,2 @@
+class EngineInterruptedError(Exception):
+    pass

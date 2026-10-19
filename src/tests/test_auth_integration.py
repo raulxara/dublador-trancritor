@@ -120,6 +120,8 @@ def test_mysql_authentication_lifecycle_and_scope():
             from tests.completion_scenarios import check_completion
 
             check_completion(client, headers, container, result.office_id)
+            from tests.default_voice_scenarios import check_default_voice
+            check_default_voice(container, result.office_id)
             # A permission belonging to another office must never grant access even if linked.
             with container.engine.begin() as connection:
                 connection.execute(

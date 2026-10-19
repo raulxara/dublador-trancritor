@@ -10,6 +10,7 @@ from pathlib import Path
 
 from app.entities.dubbing_job.execution_result_entity import ExecutionResultEntity
 from app.entities.dubbing_job.segment_entity import SegmentEntity
+from app.exceptions.engine_interrupted_error import EngineInterruptedError
 from app.exceptions.execution_timeout_error import ExecutionTimeoutError
 from app.exceptions.lease_lost_error import LeaseLostError
 from app.services.media.media_publication_guard import MediaPublicationGuard
@@ -63,6 +64,8 @@ class SubprocessAudioExecution:
                         raise LeaseLostError()
                     last = now
                 time.sleep(0.25)
+            if process.returncode == -signal.SIGKILL:
+                raise EngineInterruptedError()
             if process.returncode:
                 raise RuntimeError("Audio engine failed")
             if not renew():

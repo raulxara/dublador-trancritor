@@ -24,5 +24,5 @@ class VoiceService:
         self.repository.save(voice, create=False)
         return voice
 
-    def list(self, office_id, limit, offset):
-        return self.repository.list(office_id, limit, offset)
+    def list(self, office_id, limit, offset, q="", language_id=None, gender_id=None):
+        return self.repository.list(office_id, limit, offset, q, language_id, gender_id)

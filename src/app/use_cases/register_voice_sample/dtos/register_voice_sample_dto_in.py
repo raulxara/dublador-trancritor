@@ -8,3 +8,5 @@ class RegisterVoiceSampleDtoIn:
     actor: AuthorizedActor
     voice_id: str
     content: bytes = field(repr=False)
+
+    content_type: str = "audio/wav"

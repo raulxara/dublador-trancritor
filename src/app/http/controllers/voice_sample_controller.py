@@ -15,8 +15,8 @@ from app.use_cases.register_voice_sample.dtos.register_voice_sample_dto_in impor
 async def register_sample(
     voice_id: str, request: Request, actor: AuthorizedActor = Depends(RequirePermission("voice.update"))
 ):
-    if request.headers.get("content-type", "").split(";")[0].lower() not in ("audio/wav", "audio/x-wav"):
-        raise HTTPException(status_code=415, detail="Use audio/wav")
+    if request.headers.get("content-type", "").split(";")[0].lower() not in ("audio/wav", "audio/x-wav", "audio/mpeg"):
+        raise HTTPException(status_code=415, detail="Use WAV or MP3")
     content = bytearray()
     async for chunk in request.stream():
         if len(content) + len(chunk) > ValidateWavService.MAX_BYTES:
@@ -24,7 +24,7 @@ async def register_sample(
         content.extend(chunk)
     result = await run_in_threadpool(
         request.app.state.container.register_voice_sample.exec,
-        RegisterVoiceSampleDtoIn(actor, voice_id, bytes(content)),
+        RegisterVoiceSampleDtoIn(actor, voice_id, bytes(content), request.headers["content-type"].split(";")[0].lower()),
     )
     return {"success": True, "data": asdict(result)}
 

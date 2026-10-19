@@ -39,9 +39,12 @@ def list_voices(
     request: Request,
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
+    q: str = Query(default="", max_length=100),
+    language_id: str | None = Query(default=None, max_length=255),
+    gender_id: str | None = Query(default=None, max_length=255),
     actor: AuthorizedActor = Depends(RequirePermission("voice.read")),
 ):
-    result = request.app.state.container.list_voices.exec(ListVoicesDtoIn(actor, limit, offset))
+    result = request.app.state.container.list_voices.exec(ListVoicesDtoIn(actor, limit, offset, q, language_id, gender_id))
     return {"success": True, "data": result.data, "limit": limit, "offset": offset}
 
 

@@ -19,3 +19,13 @@ def test_supervisor_kills_process_group_on_cancel_or_deadline(tmp_path, cancel, 
         kill.assert_called_once()
         assert start.call_args.kwargs["start_new_session"] is True
         assert all("PASSWORD" not in key for key in start.call_args.kwargs["env"])
+
+
+def test_supervisor_identifies_external_kill(tmp_path):
+    from app.exceptions.engine_interrupted_error import EngineInterruptedError
+    settings = SimpleNamespace(model_root="/models", timeout_seconds=100, heartbeat_seconds=1)
+    service = SubprocessAudioExecution(tmp_path, settings)
+    process = SimpleNamespace(pid=9988, poll=lambda: -9, returncode=-9, wait=lambda: None)
+    with patch("subprocess.Popen", return_value=process), patch("os.killpg"):
+        with pytest.raises(EngineInterruptedError):
+            service.supervise([], lambda: True)

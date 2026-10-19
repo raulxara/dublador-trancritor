@@ -34,12 +34,17 @@ class SqlAlchemyVoicesRepository:
             )
             return self.entity(row) if row else None
 
-    def list(self, office_id, limit, offset):
+    def list(self, office_id, limit, offset, q="", language_id=None, gender_id=None):
         with self.engine.connect() as connection:
             rows = connection.execute(
                 text("""SELECT * FROM voices WHERE office_id=:office
+                AND status='active' AND (:language IS NULL OR language_id=:language)
+                AND (:gender IS NULL OR gender_id=:gender)
+                AND (:q='' OR LOWER(name) LIKE :search OR LOWER(COALESCE(description,'')) LIKE :search
+                OR EXISTS (SELECT 1 FROM voice_tags vt JOIN tags t ON t._id=vt.tag_id AND t.office_id=vt.office_id
+                WHERE vt.voice_id=voices._id AND vt.office_id=voices.office_id AND vt.status='active' AND t.status='active' AND LOWER(t.name) LIKE :search))
                 ORDER BY id DESC LIMIT :limit OFFSET :offset"""),
-                dict(office=office_id, limit=limit, offset=offset),
+                dict(office=office_id, limit=limit, offset=offset, q=q.lower(), search="%"+q.lower()+"%", language=language_id, gender=gender_id),
             ).mappings()
             return [self.entity(row) for row in rows]
 

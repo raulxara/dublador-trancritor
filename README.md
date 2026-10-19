@@ -17,7 +17,7 @@ O ambiente de desenvolvimento e os testes rodam nos containers. Não é necessá
 Python, dependências ou criar uma `.venv` no host.
 
 ```sh
-cd /Users/usuario/Desktop/work/ProjetoPessoal/Projects/dubber
+cd /Users/usuario/Desktop/work/ProjetoPessoal/dubber
 ```
 
 Na primeira instalação, se `.env` não existir, copie `.env.example` para `.env` e defina

@@ -8,6 +8,7 @@ from app.entities.dubbing_job.services.renew_job.dtos.renew_job_dto_in import Re
 from app.entities.dubbing_job.services.renew_job.renew_job_service import RenewJobService
 from app.entities.dubbing_job.services.resolve_execution.dtos.resolve_execution_dto_in import ResolveExecutionDtoIn
 from app.entities.dubbing_job.services.resolve_execution.resolve_execution_service import ResolveExecutionService
+from app.exceptions.engine_interrupted_error import EngineInterruptedError
 from app.exceptions.execution_timeout_error import ExecutionTimeoutError
 from app.exceptions.lease_lost_error import LeaseLostError
 from app.interfaces.i_audio_execution import IAudioExecution
@@ -45,6 +46,9 @@ class ProcessNextJobUseCaseService:
                 result = self.audio.run(context, renew)
             except LeaseLostError:
                 return ProcessNextJobDtoOut("lease_lost")
+            except EngineInterruptedError:
+                self.fail.exec(FailJobDtoIn(lease, "ENGINE_INTERRUPTED"))
+                return ProcessNextJobDtoOut("failed")
             except ExecutionTimeoutError:
                 self.fail.exec(FailJobDtoIn(lease, "EXECUTION_TIMEOUT"))
                 return ProcessNextJobDtoOut("failed")

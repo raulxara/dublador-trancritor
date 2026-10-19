@@ -8,6 +8,6 @@ class FailJobService:
         self.repository = repository
 
     def exec(self, dto: FailJobDtoIn) -> FailJobDtoOut:
-        if dto.code not in {"ENGINE_FAILED", "INPUT_UNAVAILABLE", "EXECUTION_TIMEOUT"}:
+        if dto.code not in {"ENGINE_FAILED", "INPUT_UNAVAILABLE", "EXECUTION_TIMEOUT", "ENGINE_INTERRUPTED"}:
             raise ValueError("Unknown failure code")
         return FailJobDtoOut(self.repository.fail(dto.lease, dto.code))

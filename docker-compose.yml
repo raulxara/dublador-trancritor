@@ -2,6 +2,7 @@ name: siplug-dubber
 
 services:
   app:
+    restart: unless-stopped
     build:
       context: .
       dockerfile: ./.docker/python/Dockerfile.DEV
@@ -19,7 +20,11 @@ services:
       DUBBER_DB_USERNAME: siplug_dubber
       DUBBER_DB_PASSWORD: ${DUBBER_DB_PASSWORD:?Configure DUBBER_DB_PASSWORD no .env}
     volumes:
-      - ./src:/var/www/html
+      - type: bind
+        source: ./src
+        target: /var/www/html
+        bind:
+          create_host_path: false
       - media_data:/var/lib/dubber/media
     depends_on:
       db:
@@ -50,7 +55,12 @@ services:
       DUBBER_DB_PASSWORD: ${DUBBER_DB_PASSWORD:?Configure DUBBER_DB_PASSWORD no .env}
       DUBBER_WORKER_TIMEOUT_SECONDS: ${DUBBER_WORKER_TIMEOUT_SECONDS:-1200}
     volumes:
-      - ./src:/var/www/html:ro
+      - type: bind
+        source: ./src
+        target: /var/www/html
+        read_only: true
+        bind:
+          create_host_path: false
       - media_data:/var/lib/dubber/media
       - model_data:/var/cache/dubber/models:ro
     depends_on:
@@ -80,7 +90,12 @@ services:
       DUBBER_DB_USERNAME: siplug_dubber
       DUBBER_DB_PASSWORD: ${DUBBER_DB_PASSWORD:?Configure DUBBER_DB_PASSWORD no .env}
     volumes:
-      - ./src:/var/www/html:ro
+      - type: bind
+        source: ./src
+        target: /var/www/html
+        read_only: true
+        bind:
+          create_host_path: false
       - media_data:/var/lib/dubber/media
     depends_on:
       db:

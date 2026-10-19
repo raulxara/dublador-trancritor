@@ -8,15 +8,18 @@ from app.use_cases.manage_voice.manage_voice_use_case_service import ManageVoice
 
 
 class ListVoicesUseCaseService:
-    def __init__(self, service: VoiceService):
+    def __init__(self, service: VoiceService, defaults=None):
         self.service = service
+        self.defaults = defaults
 
     def exec(self, dto: ListVoicesDtoIn) -> ListVoicesDtoOut:
         if "voice.read" not in dto.actor.permissions:
             raise AuthorizationError()
+        if self.defaults is not None:
+            self.defaults.ensure(dto.actor.office_id)
         return ListVoicesDtoOut(
             [
                 asdict(ManageVoiceUseCaseService.output(row))
-                for row in self.service.list(dto.actor.office_id, dto.limit, dto.offset)
+                for row in self.service.list(dto.actor.office_id, dto.limit, dto.offset, dto.q, dto.language_id, dto.gender_id)
             ]
         )
